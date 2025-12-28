@@ -10,15 +10,8 @@ import traceback
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Configure logging
-import structlog
-structlog.configure(
-    processors=[
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer()
-    ],
-    logger_factory=structlog.PrintLoggerFactory(),
-)
-logger = structlog.get_logger()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("lithium-bot")
 
 class LithiumBot(commands.Bot):
     def __init__(self):
@@ -61,12 +54,14 @@ class LithiumBot(commands.Bot):
         await site.start()
         logger.info("Health check server started on port 8080")
 
-        # Load Cogs
-        from apps.bot.cogs.tickets import TicketView, TicketControlView
-        
-        # Register Persistent Views
-        self.add_view(TicketView(self, []))
-        self.add_view(TicketControlView(self))
+        # Load Persistent Views
+        try:
+            from apps.bot.cogs.tickets import TicketView, TicketControlView
+            self.add_view(TicketView(self, []))
+            self.add_view(TicketControlView(self))
+            logger.info("Persistent views registered.")
+        except Exception as e:
+            logger.error(f"Failed to register persistent views: {e}")
 
         extensions = [
             'apps.bot.cogs.moderation',
