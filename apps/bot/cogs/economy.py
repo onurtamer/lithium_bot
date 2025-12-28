@@ -7,6 +7,9 @@ from sqlalchemy import select
 from datetime import datetime, timedelta
 import random
 import asyncio
+import logging
+
+logger = logging.getLogger("lithium-bot")
 
 # Define Games Logic Separately
 
@@ -231,4 +234,10 @@ class Economy(commands.Cog):
             raise e
 
 async def setup(bot):
-    await bot.add_cog(Economy(bot))
+    logger.info("Loading Economy cog...")
+    try:
+        await bot.add_cog(Economy(bot))
+        logger.info("Economy cog loaded successfully.")
+    except Exception as e:
+        logger.error(f"Failed to load Economy cog: {e}")
+        raise e

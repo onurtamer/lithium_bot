@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from lithium_core.database.session import AsyncSessionLocal
-from lithium_core.models.tickets import Ticket
+from lithium_core.models.tickets import Ticket, TicketConfig
 from lithium_core.models.core import Guild
 import asyncio
 from sqlalchemy import select
@@ -16,9 +16,10 @@ class TicketControlView(discord.ui.View):
 
     @discord.ui.button(label="Claim Ticket", style=discord.ButtonStyle.success, custom_id="claim_ticket")
     async def claim(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check permissions
+        # Check permissions logic could be enhanced here to check DB support role
+        # For now, stick to permission check or admin
         if not interaction.user.guild_permissions.manage_messages:
-            return await interaction.response.send_message("❌ You are not authroized to claim tickets.", ephemeral=True)
+             return await interaction.response.send_message("❌ You are not authroized.", ephemeral=True)
 
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(Ticket).where(Ticket.channel_id == str(interaction.channel.id)))
@@ -28,7 +29,7 @@ class TicketControlView(discord.ui.View):
                 return await interaction.response.send_message("This is not a ticket channel!", ephemeral=True)
             
             if ticket.claimed_by:
-                return await interaction.response.send_message(f"Ticket already claimed by <@{ticket.claimed_by}>", ephemeral=True) # Assuming ID is stored
+                return await interaction.response.send_message(f"Ticket already claimed by <@{ticket.claimed_by}>", ephemeral=True) 
             
             ticket.claimed_by = str(interaction.user.id)
             ticket.status = "CLAIMED"
@@ -50,7 +51,6 @@ class TicketControlView(discord.ui.View):
             
         file = discord.File(io.BytesIO(transcript_text.encode()), filename=f"transcript-{interaction.channel.name}.txt")
         
-        # Send transcript to log channel (placeholder logic or DM user)
         try:
             await interaction.user.send("Here is the transcript for the closed ticket.", file=file)
         except: pass
@@ -67,12 +67,17 @@ class TicketControlView(discord.ui.View):
         await interaction.channel.delete()
 
 class TicketCreateSelect(discord.ui.Select):
-    def __init__(self, bot):
-        options = [
-            discord.SelectOption(label="General Support", description="General questions and help", emoji="❓", value="general"),
-            discord.SelectOption(label="Billing", description="Payments and donations", emoji="💳", value="billing"),
-            discord.SelectOption(label="Report", description="Report a user or bug", emoji="⚠️", value="report"),
-        ]
+    def __init__(self, bot, categories):
+        options = []
+        for cat in categories:
+            # cat is a dict like {"label": "Gen", "value": "gen", "emoji": "❓"}
+            options.append(discord.SelectOption(
+                label=cat.get("label"), 
+                value=cat.get("value"), 
+                emoji=cat.get("emoji") if cat.get("emoji") else None,
+                description=cat.get("description")
+            ))
+            
         super().__init__(placeholder="Select a category...", min_values=1, max_values=1, custom_id="ticket_category_select", options=options)
         self.bot = bot
 
@@ -87,6 +92,14 @@ class TicketCreateSelect(discord.ui.Select):
             if existing:
                  return await interaction.followup.send(f"You already have an open ticket: <#{existing.channel_id}>", ephemeral=True)
 
+            # Check config for role
+            stmt_conf = select(TicketConfig).where(TicketConfig.guild_id == str(interaction.guild_id))
+            config = (await db.execute(stmt_conf)).scalar_one_or_none()
+            
+            support_role = None
+            if config and config.support_role_id:
+                support_role = interaction.guild.get_role(int(config.support_role_id))
+
             # Create Channel
             overwrites = {
                 interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
@@ -94,8 +107,8 @@ class TicketCreateSelect(discord.ui.Select):
                 interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True)
             }
             
-            # Find mod role (simple logic: managers)
-            # In a real app we'd get this from config
+            if support_role:
+                overwrites[support_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
             
             name = f"{category_name}-{interaction.user.name}"
             channel = await interaction.guild.create_text_channel(name, overwrites=overwrites)
@@ -117,28 +130,83 @@ class TicketCreateSelect(discord.ui.Select):
             await interaction.followup.send(f"Ticket created: {channel.mention}", ephemeral=True)
 
 class TicketView(discord.ui.View):
-    def __init__(self, bot):
+    def __init__(self, bot, categories):
         super().__init__(timeout=None)
-        self.add_item(TicketCreateSelect(bot))
+        if not categories:
+             # Default fallback
+             categories = [{"label": "General Support", "value": "general", "emoji": "❓", "description": "General Help"}]
+        self.add_item(TicketCreateSelect(bot, categories))
 
 class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def get_config(self, db, guild_id):
+        stmt = select(TicketConfig).where(TicketConfig.guild_id == str(guild_id))
+        return (await db.execute(stmt)).scalar_one_or_none()
+
     @app_commands.command(name="setup_tickets", description="Setup ticket panel")
     @app_commands.checks.has_permissions(administrator=True)
     async def setup_tickets(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
         target_channel = channel or interaction.channel
+        
+        async with AsyncSessionLocal() as db:
+            config = await self.get_config(db, interaction.guild_id)
+            categories = config.categories if config else []
+            
         embed = discord.Embed(
             title="🎫 Support Center", 
             description="Select a category below to open a ticket.", 
             color=discord.Color.blurple()
         )
-        embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else None)
+        if interaction.guild.icon:
+            embed.set_thumbnail(url=interaction.guild.icon.url)
         
-        view = TicketView(self.bot)
+        view = TicketView(self.bot, categories)
         await target_channel.send(embed=embed, view=view)
         await interaction.response.send_message(f"Ticket panel sent to {target_channel.mention}", ephemeral=True)
+
+    @app_commands.command(name="ticket_set_role", description="Set support staff role")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def set_role(self, interaction: discord.Interaction, role: discord.Role):
+        async with AsyncSessionLocal() as db:
+            config = await self.get_config(db, interaction.guild_id)
+            if not config:
+                config = TicketConfig(guild_id=str(interaction.guild_id))
+                db.add(config)
+            
+            config.support_role_id = str(role.id)
+            await db.commit()
+            
+        await interaction.response.send_message(f"✅ Tickets will now be visible to {role.mention}", ephemeral=True)
+
+    @app_commands.command(name="ticket_add_category", description="Add a new ticket category")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def add_category(self, interaction: discord.Interaction, label: str, value: str, emoji: str, description: str = None):
+        async with AsyncSessionLocal() as db:
+            config = await self.get_config(db, interaction.guild_id)
+            if not config:
+                config = TicketConfig(guild_id=str(interaction.guild_id))
+                db.add(config)
+            
+            # Categories is a list of dicts. JSON mutation in SQLAlchemy needs reassignment 
+            # or explicit flag tracking often, but reassigning the list usually works.
+            current_cats = list(config.categories) if config.categories else []
+            current_cats.append({
+                "label": label,
+                "value": value.lower(),
+                "emoji": emoji,
+                "description": description
+            })
+            config.categories = current_cats
+            
+            # Force dirty flag if needed (in async session sometimes explicit)
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(config, "categories")
+            
+            await db.commit()
+            
+        await interaction.response.send_message(f"✅ Added category: **{label}**", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))

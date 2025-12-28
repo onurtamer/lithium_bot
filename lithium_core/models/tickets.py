@@ -27,3 +27,12 @@ class TicketMessage(Base, TimestampMixin):
     attachments: Mapped[list[str]] = mapped_column(JSON, default=list)
     
     ticket: Mapped["Ticket"] = relationship(back_populates="messages")
+
+class TicketConfig(Base, TimestampMixin):
+    __tablename__ = "ticket_configs"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    guild_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    
+    support_role_id: Mapped[str] = mapped_column(String, nullable=True)
+    categories: Mapped[list[dict]] = mapped_column(JSON, default=list) # [{"label": "General", "value": "gen", "emoji": "❓"}]
