@@ -4,6 +4,7 @@ import os
 import asyncio
 import logging
 import sys
+import traceback
 
 # Add project root to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -69,6 +70,7 @@ class LithiumBot(commands.Bot):
                 logger.info(f"Loaded extension: {extension}")
             except Exception as e:
                 logger.error(f"Failed to load extension {extension}: {e}")
+                traceback.print_exc()
 
         try:
             await self.tree.sync()
@@ -142,7 +144,6 @@ class LithiumBot(commands.Bot):
         logger.info("Shutting down Lithium Bot...")
         await super().close()
 
-
 async def main():
     token = os.getenv("DISCORD_TOKEN")
     if not token:
@@ -150,6 +151,17 @@ async def main():
         return
 
     bot = LithiumBot()
+
+    @bot.command()
+    @commands.is_owner()
+    async def sync(ctx):
+        """Sync commands to the current guild immediately."""
+        try:
+            bot.tree.copy_global_to(guild=ctx.guild)
+            synced = await bot.tree.sync(guild=ctx.guild)
+            await ctx.send(f"✅ Synced {len(synced)} commands to this guild!")
+        except Exception as e:
+            await ctx.send(f"❌ Sync failed: {e}")
     
     # Handle SIGTERM/SIGINT
     loop = asyncio.get_event_loop()
