@@ -96,7 +96,7 @@ class TicketCreateSelect(discord.ui.Select):
             
             async with AsyncSessionLocal() as db:
                 # Check existing
-                stmt = select(Ticket).where(Ticket.user_id == str(interaction.user.id), Ticket.status != "CLOSED")
+                stmt = select(Ticket).where(Ticket.owner_id == str(interaction.user.id), Ticket.status != "CLOSED")
                 existing = (await db.execute(stmt)).scalar_one_or_none()
                 if existing:
                      return await interaction.followup.send(f"You already have an open ticket: <#{existing.channel_id}>", ephemeral=True)
@@ -125,7 +125,7 @@ class TicketCreateSelect(discord.ui.Select):
                 ticket = Ticket(
                     guild_id=str(interaction.guild.id), 
                     channel_id=str(channel.id), 
-                    user_id=str(interaction.user.id),
+                    owner_id=str(interaction.user.id),
                     category=category_name,
                     status="OPEN"
                 )
