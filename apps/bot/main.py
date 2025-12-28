@@ -60,6 +60,7 @@ class LithiumBot(commands.Bot):
             'apps.bot.cogs.leveling', 
             'apps.bot.cogs.tickets',
             'apps.bot.cogs.embed_builder',
+            'apps.bot.cogs.economy',
         ]
         
         for extension in extensions:

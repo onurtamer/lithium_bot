@@ -13,3 +13,4 @@ from .advanced import (
 from .raid import QuarantineConfig, QuarantineLog
 from .social import ReactionRoleMenu
 from .embeds import EmbedConfig, WelcomeConfig
+from .economy import EconomyProfile
