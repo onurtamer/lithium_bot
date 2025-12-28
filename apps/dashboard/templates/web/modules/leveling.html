@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen flex bg-gray-900 text-white">
+    {% include 'web/partials/sidebar.html' with guild_id=guild_id module_name='leveling' %}
+
+    <main class="flex-1 p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Leveling & XP Settings</h1>
+            <button hx-post="{% url 'toggle_module' guild_id 'leveling' %}" hx-swap="none"
+                class="px-4 py-1 rounded-full font-bold transition-colors {% if db_guild.leveling_enabled %}bg-green-600 text-white{% else %}bg-gray-700 text-gray-400{% endif %}"
+                onclick="this.classList.toggle('bg-green-600'); this.classList.toggle('bg-gray-700'); this.innerText = this.innerText == 'Enabled' ? 'Disabled' : 'Enabled';">
+                {% if db_guild.leveling_enabled %}Enabled{% else %}Disabled{% endif %}
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <h2 class="text-xl font-bold mb-4">XP Configuration</h2>
+                <form class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Min XP per message</label>
+                            <input type="number" name="min_xp" value="15"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-pink-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-1">Max XP per message</label>
+                            <input type="number" name="max_xp" value="25"
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-pink-500">
+                        </div>
+                    </div>
+                    <button type="submit"
+                        class="px-6 py-2 bg-pink-600 hover:bg-pink-700 rounded-lg font-bold transition-colors">
+                        Save XP Settings
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 text-center flex flex-col justify-center">
+                <h2 class="text-xl font-bold mb-2">Level Rewards</h2>
+                <p class="text-gray-400 mb-4">Set up roles that are automatically granted upon reaching specific levels.
+                </p>
+                <button class="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold transition-colors">
+                    Manage Rewards
+                </button>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

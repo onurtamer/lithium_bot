@@ -1,0 +1,71 @@
+{% extends "web/guild_detail.html" %}
+
+{% block module_content %}
+<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2">Quarantine Mode</h1>
+            <p class="text-gray-400">Advanced anti-raid and protection logic for high-risk situations.</p>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-sm font-bold text-gray-500 uppercase tracking-widest">Global Lock</span>
+            <button hx-post="{% url 'toggle_module' guild_id 'quarantine' %}" hx-swap="none"
+                class="w-14 h-7 rounded-full bg-red-900/40 border border-red-500/30 relative transition-colors shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                <div
+                    class="absolute top-1 left-1 w-5 h-5 rounded-full transition-transform {% if db_guild.quarantine_enabled %}bg-red-500 translate-x-7 shadow-[0_0_10px_rgba(239,68,68,0.4)]{% else %}bg-gray-600{% endif %}">
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass p-6 rounded-3xl border border-red-500/10">
+            <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Raid Detection</p>
+            <p class="text-2xl font-bold text-white">Normal <span
+                    class="text-xs font-normal text-emerald-400 ml-2">Secure</span></p>
+        </div>
+        <div class="glass p-6 rounded-3xl border border-red-500/10">
+            <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Blocked Joins (24h)</p>
+            <p class="text-2xl font-bold text-white">0</p>
+        </div>
+        <div
+            class="glass p-6 rounded-3xl border border-red-500/10 hover:border-red-500/30 transition-all cursor-pointer">
+            <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Emergency Actions</p>
+            <p class="text-sm font-bold text-red-400">Lock Channels Now &rarr;</p>
+        </div>
+    </div>
+
+    <!-- Active Settings -->
+    <div class="glass p-8 rounded-3xl border border-gray-700/50">
+        <h3 class="text-xl font-bold text-white mb-6">Security Thresholds</h3>
+        <div class="space-y-6">
+            <div
+                class="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl bg-gray-900/40 border border-gray-800">
+                <div>
+                    <h4 class="font-bold text-gray-200">New Account Quarantine</h4>
+                    <p class="text-xs text-gray-500">How many days old must an account be to avoid quarantine?</p>
+                </div>
+                <div class="mt-4 md:mt-0 flex items-center space-x-3">
+                    <input type="number" value="3"
+                        class="w-16 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-center text-sm">
+                    <span class="text-xs text-gray-500 font-bold">DAYS</span>
+                </div>
+            </div>
+
+            <div
+                class="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl bg-gray-900/40 border border-gray-800">
+                <div>
+                    <h4 class="font-bold text-gray-200">Join Rate Limit</h4>
+                    <p class="text-xs text-gray-500">Max joins permitted per minute before triggering raid mode.</p>
+                </div>
+                <div class="mt-4 md:mt-0 flex items-center space-x-3">
+                    <input type="number" value="10"
+                        class="w-16 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-center text-sm">
+                    <span class="text-xs text-gray-500 font-bold">JOINS</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+# --- SECURITY ---
+.env
+root.env
+*.env
+secrets.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+env/
+.env/
+
+# --- Django ---
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# --- Docker ---
+.docker/
+data/
+postgres_data/
+redis_data/
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Logs ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS ---
+.DS_Store
+Thumbs.db

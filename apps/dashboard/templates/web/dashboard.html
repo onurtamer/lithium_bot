@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<nav class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
+    <div class="text-xl font-bold text-purple-400">Lithium</div>
+    <a href="{% url 'logout' %}" class="text-gray-400 hover:text-white">Logout</a>
+</nav>
+
+<div class="container mx-auto p-8">
+    <h1 class="text-3xl font-bold mb-6">Select a Server</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for guild in guilds %}
+        <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 hover:border-purple-500 transition-all group">
+            <div class="flex items-center gap-4 mb-4">
+                {% if guild.icon %}
+                <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png" alt="{{ guild.name }}"
+                    class="w-12 h-12 rounded-full ring-2 ring-gray-700 group-hover:ring-purple-500">
+                {% else %}
+                <div class="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-xl font-bold">
+                    {{ guild.name|slice:":1" }}
+                </div>
+                {% endif %}
+                <div>
+                    <h3 class="font-bold text-lg truncate">{{ guild.name }}</h3>
+                    <span class="text-xs text-gray-400 uppercase tracking-wider">
+                        {% if guild.owner %}Owner{% else %}Manager{% endif %}
+                    </span>
+                </div>
+            </div>
+            <a href="{% url 'guild_detail' guild.id %}"
+                class="block w-full text-center py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-white font-bold">
+                Dashboard
+            </a>
+        </div>
+        {% empty %}
+        <p class="text-gray-400 col-span-full">No servers found where you have Manage Server permissions.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

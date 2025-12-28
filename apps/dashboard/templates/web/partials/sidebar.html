@@ -1,0 +1,53 @@
+{% load dashboard_extras %}
+<aside
+    class="w-64 bg-gray-900/50 border-r border-gray-800 p-4 scrollbar-hide overflow-y-auto hidden md:flex flex-col glass h-screen sticky top-0">
+    <div class="mb-8 px-2">
+        <a href="{% url 'dashboard' %}"
+            class="text-gray-500 hover:text-purple-400 text-sm transition-colors flex items-center mb-4 group">
+            <svg class="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+            </svg>
+            Servers
+        </a>
+        <h2 class="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+            Lithium</h2>
+    </div>
+
+    <nav class="space-y-1 flex-1">
+        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 px-3">General</p>
+        <a href="{% url 'module_config' guild_id 'overview' %}"
+            class="flex items-center px-3 py-2 rounded-lg transition-all {% if module_name == 'overview' %}bg-purple-600/20 text-purple-400 border border-purple-500/30{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+            Overview
+        </a>
+        <a href="{% url 'module_config' guild_id 'audit' %}"
+            class="flex items-center px-3 py-2 rounded-lg transition-all {% if module_name == 'audit' %}bg-purple-600/20 text-purple-400 border border-purple-500/30{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+            Audit Logs
+        </a>
+        <a href="{% url 'module_config' guild_id 'test-configuration' %}"
+            class="flex items-center px-3 py-2 rounded-lg transition-all {% if module_name == 'test-configuration' %}bg-purple-600/20 text-purple-400 border border-purple-500/30{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+            Diagnostic
+        </a>
+
+        <div class="my-6 border-t border-gray-800/50"></div>
+        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 px-3">Core Modules</p>
+        {% for mod in "moderation,automod,tickets,leveling,logs"|list_split:"," %}
+        <a href="{% url 'module_config' guild_id mod %}"
+            class="flex items-center px-3 py-2 rounded-lg transition-all capitalize {% if module_name == mod %}bg-purple-600/20 text-purple-400 border border-purple-500/30{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+            {{ mod }}
+        </a>
+        {% endfor %}
+
+        <div class="my-6 border-t border-gray-800/50"></div>
+        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 px-3">Social & Utility</p>
+        {% for mod in
+        "reaction-roles,scheduled,commands,sticky,autoresponder,starboard,afk,reminders,temp-voice,embeds,quarantine"|list_split:","
+        %}
+        <a href="{% url 'module_config' guild_id mod %}"
+            class="flex items-center px-3 py-2 rounded-lg transition-all capitalize {% if module_name == mod %}bg-purple-600/20 text-purple-400 border border-purple-500/30{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}">
+            {{ mod|replace:"-, " }}
+        </a>
+        {% endfor %}
+    </nav>
+</aside>

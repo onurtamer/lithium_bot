@@ -1,0 +1,45 @@
+{% extends "web/guild_detail.html" %}
+
+{% block module_content %}
+<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2">Test Configuration</h1>
+            <p class="text-gray-400">Diagnostic tools to verify bot health and permissions.</p>
+        </div>
+        <button hx-post="{% url 'module_config' guild_id 'test-configuration' %}" hx-target="#diagnostic-results"
+            class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/20">
+            Re-run Check
+        </button>
+    </div>
+
+    <div id="diagnostic-results" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% include "web/partials/diagnostic_results.html" %}
+    </div>
+
+    <!-- Detailed Info Card -->
+    <div class="glass p-8 rounded-3xl border border-gray-700/50">
+        <h3 class="text-xl font-bold text-white mb-6">Technical Details</h3>
+        <div class="space-y-4">
+            <div class="flex justify-between items-center py-4 border-b border-gray-700/50">
+                <span class="text-gray-400">Intents Enabled</span>
+                <span
+                    class="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">MESSAGES,
+                    GUILDS, MEMBERS</span>
+            </div>
+            <div class="flex justify-between items-center py-4 border-b border-gray-700/50">
+                <span class="text-gray-400">Bot Role Position</span>
+                <div class="flex items-center text-emerald-400 text-sm font-bold">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M7 10l5 5 5-5z" />
+                    </svg> 3rd (Above members)
+                </div>
+            </div>
+            <div class="flex justify-between items-center py-4">
+                <span class="text-gray-400">Last Slash Sync</span>
+                <span class="text-gray-500 text-sm italic">2 minutes ago</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

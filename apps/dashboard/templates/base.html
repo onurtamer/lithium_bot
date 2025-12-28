@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Lithium Bot{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        body {
+            background-color: #0b0f1a;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .glass {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(75, 85, 99, 0.3);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col font-['Outfit',_sans-serif]">
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 pointer-events-none space-y-2"></div>
+
+    <!-- Modal Wrapper -->
+    <div id="modal-wrapper"
+        class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all">
+        <div id="modal-content"
+            class="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl max-w-lg w-full p-6 relative transform transition-all scale-95 opacity-0">
+            <!-- HTMX will load content here -->
+        </div>
+    </div>
+
+    {% block content %}
+    {% endblock %}
+
+    <script>
+        // HTMX Toast & Modal Logic
+        document.body.addEventListener('htmx:afterOnLoad', function (evt) {
+            if (evt.detail.target.id === 'modal-content') {
+                const wrapper = document.getElementById('modal-wrapper');
+                const content = document.getElementById('modal-content');
+                wrapper.classList.remove('hidden');
+                setTimeout(() => {
+                    content.classList.remove('scale-95', 'opacity-0');
+                    content.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+        });
+
+        function closeModal() {
+            const wrapper = document.getElementById('modal-wrapper');
+            const content = document.getElementById('modal-content');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => wrapper.classList.add('hidden'), 200);
+        }
+
+        window.onclick = function (event) {
+            if (event.target == document.getElementById('modal-wrapper')) closeModal();
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,54 @@
+{% extends "web/guild_detail.html" %}
+
+{% block module_content %}
+<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2">Sticky Messages</h1>
+            <p class="text-gray-400">Keep important information pinned to the bottom of the chat.</p>
+        </div>
+        <button
+            class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-2xl transition-all hover:scale-105 shadow-lg shadow-purple-500/20">
+            Add Sticky
+        </button>
+    </div>
+
+    <div class="glass overflow-hidden rounded-3xl border border-gray-700/50">
+        <table class="w-full text-left">
+            <thead>
+                <tr
+                    class="bg-gray-800/30 text-gray-500 text-[10px] uppercase font-bold tracking-widest border-b border-gray-700/50">
+                    <th class="px-6 py-4">Channel</th>
+                    <th class="px-6 py-4">Content Preview</th>
+                    <th class="px-6 py-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700/30">
+                <tr class="hover:bg-gray-700/20 transition-colors">
+                    <td class="px-6 py-4">
+                        <span class="text-purple-400 font-bold">#announcements</span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-400 truncate max-w-xs">
+                        Don't forget to check out our newest event starting...
+                    </td>
+                    <td class="px-6 py-4 flex space-x-2">
+                        <button class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"><svg
+                                class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                </path>
+                            </svg></button>
+                        <button
+                            class="p-2 rounded-lg bg-gray-800 hover:bg-red-500/20 text-red-400 transition-colors"><svg
+                                class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                </path>
+                            </svg></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

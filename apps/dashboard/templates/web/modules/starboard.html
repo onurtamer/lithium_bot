@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen flex bg-gray-900 text-white">
+    {% include 'web/partials/sidebar.html' with guild_id=guild_id module_name='starboard' %}
+
+    <main class="flex-1 p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Starboard Settings</h1>
+            <button hx-post="{% url 'toggle_module' guild_id 'starboard' %}" hx-swap="none"
+                class="px-4 py-1 rounded-full font-bold transition-colors {% if db_guild.starboard_enabled %}bg-green-600 text-white{% else %}bg-gray-700 text-gray-400{% endif %}"
+                onclick="this.classList.toggle('bg-green-600'); this.classList.toggle('bg-gray-700'); this.innerText = this.innerText == 'Enabled' ? 'Disabled' : 'Enabled';">
+                {% if db_guild.starboard_enabled %}Enabled{% else %}Disabled{% endif %}
+            </button>
+        </div>
+
+        <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 max-w-2xl">
+            <form class="space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Starboard Channel ID</label>
+                        <input type="text" name="channel_id" placeholder="1234567890"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-yellow-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Star Threshold</label>
+                        <input type="number" name="threshold" value="3" min="1"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-yellow-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Star Emoji</label>
+                    <input type="text" name="emoji" value="⭐"
+                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-yellow-500">
+                </div>
+
+                <button type="submit"
+                    class="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold transition-colors">
+                    Save Starboard Settings
+                </button>
+            </form>
+        </div>
+    </main>
+</div>
+{% endblock %}

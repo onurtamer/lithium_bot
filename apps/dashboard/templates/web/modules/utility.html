@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="min-h-screen flex bg-gray-900 text-white">
+    {% include 'web/partials/sidebar.html' with guild_id=guild_id module_name='utility' %}
+
+    <main class="flex-1 p-8">
+        <h1 class="text-3xl font-bold mb-6">Utility Modules</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Sticky Messages -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">Sticky Messages</h2>
+                    <button hx-post="{% url 'toggle_module' guild_id 'sticky_messages' %}" hx-swap="none"
+                        class="px-3 py-1 rounded-full text-xs font-bold {% if db_guild.sticky_messages_enabled %}bg-green-600{% else %}bg-gray-700{% endif %}">
+                        {% if db_guild.sticky_messages_enabled %}ON{% else %}OFF{% endif %}
+                    </button>
+                </div>
+                <p class="text-gray-400 text-sm mb-4">Messages that stick to the bottom of the channel.</p>
+                <!-- Add list/CRUD here if needed -->
+            </div>
+
+            <!-- AFK -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">AFK System</h2>
+                    <button hx-post="{% url 'toggle_module' guild_id 'afk' %}" hx-swap="none"
+                        class="px-3 py-1 rounded-full text-xs font-bold {% if db_guild.afk_enabled %}bg-green-600{% else %}bg-gray-700{% endif %}">
+                        {% if db_guild.afk_enabled %}ON{% else %}OFF{% endif %}
+                    </button>
+                </div>
+                <p class="text-gray-400 text-sm">Notifies users when a mentioned user is away.</p>
+            </div>
+
+            <!-- Auto Responder -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">Auto Responder</h2>
+                    <button hx-post="{% url 'toggle_module' guild_id 'auto_responder' %}" hx-swap="none"
+                        class="px-3 py-1 rounded-full text-xs font-bold {% if db_guild.auto_responder_enabled %}bg-green-600{% else %}bg-gray-700{% endif %}">
+                        {% if db_guild.auto_responder_enabled %}ON{% else %}OFF{% endif %}
+                    </button>
+                </div>
+                <p class="text-gray-400 text-sm">Automatically respond to specific triggers.</p>
+            </div>
+
+            <!-- Reminders -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">Reminders</h2>
+                    <button hx-post="{% url 'toggle_module' guild_id 'reminders' %}" hx-swap="none"
+                        class="px-3 py-1 rounded-full text-xs font-bold {% if db_guild.reminders_enabled %}bg-green-600{% else %}bg-gray-700{% endif %}">
+                        {% if db_guild.reminders_enabled %}ON{% else %}OFF{% endif %}
+                    </button>
+                </div>
+                <p class="text-gray-400 text-sm">Allow users to set personal reminders.</p>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

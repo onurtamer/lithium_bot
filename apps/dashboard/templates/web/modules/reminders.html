@@ -1,0 +1,26 @@
+{% extends "web/guild_detail.html" %}
+
+{% block module_content %}
+<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2">Reminders</h1>
+            <p class="text-gray-400">User-scheduled reminders and notifications.</p>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-sm font-bold text-gray-500 uppercase tracking-widest">Status</span>
+            <button hx-post="{% url 'toggle_module' guild_id 'reminders' %}" hx-swap="none"
+                class="w-14 h-7 rounded-full bg-gray-800 border border-gray-700 relative transition-colors">
+                <div
+                    class="absolute top-1 left-1 w-5 h-5 rounded-full transition-transform {% if db_guild.reminders_enabled %}bg-emerald-500 translate-x-7 shadow-[0_0_10px_rgba(16,185,129,0.4)]{% else %}bg-gray-600{% endif %}">
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <div class="glass p-8 rounded-3xl border border-gray-700/50">
+        <h3 class="text-xl font-bold text-white mb-6">Scheduled Reminders</h3>
+        <p class="text-gray-500 text-center py-10 italic">No reminders are currently scheduled in this server.</p>
+    </div>
+</div>
+{% endblock %}

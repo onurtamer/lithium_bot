@@ -1,0 +1,29 @@
+<div hx-swap-oob="afterbegin:#toast-container">
+    <div
+        class="glass px-6 py-4 rounded-2xl border {% if type == 'success' %}border-emerald-500/30 bg-emerald-500/10{% else %}border-red-500/30 bg-red-500/10{% endif %} flex items-center space-x-3 pointer-events-auto animate-in slide-in-from-right-full duration-300 shadow-xl backdrop-blur-md transition-all">
+        <div
+            class="w-8 h-8 rounded-full {% if type == 'success' %}bg-emerald-500/20 text-emerald-400{% else %}bg-red-500/20 text-red-400{% endif %} flex items-center justify-center border {% if type == 'success' %}border-emerald-500/20{% else %}border-red-500/20{% endif %}">
+            {% if type == 'success' %}
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            {% else %}
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            {% endif %}
+        </div>
+        <div>
+            <p class="text-sm font-bold text-white">{{ message }}</p>
+        </div>
+        <script>
+            (function () {
+                const toast = document.currentScript.parentElement;
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-x-[20%]', 'scale-95');
+                    setTimeout(() => toast.remove(), 500);
+                }, 5000);
+            })();
+        </script>
+    </div>
+</div>

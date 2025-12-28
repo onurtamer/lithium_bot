@@ -1,0 +1,27 @@
+{% for key, status in bot_status.items %}
+<div
+    class="glass p-6 rounded-3xl border border-gray-700/50 flex items-start space-x-4 animate-in fade-in zoom-in-95 duration-300">
+    <div
+        class="w-12 h-12 rounded-xl {% if status %}bg-emerald-500/10 text-emerald-400{% else %}bg-red-500/10 text-red-400{% endif %} flex-shrink-0 flex items-center justify-center border border-emerald-500/20">
+        {% if status %}
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        {% else %}
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+        {% endif %}
+    </div>
+    <div>
+        <h3 class="text-lg font-bold text-white mb-1 capitalize">{{ key|replace:"_, " }}</h3>
+        <p class="text-sm text-gray-400">
+            {% if status %}
+            Everything looks correct. The bot has the required access.
+            {% else %}
+            <span class="text-red-400">Action Required:</span> The bot is missing access or has incorrect settings.
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endfor %}

@@ -1,0 +1,11 @@
+{% for rule in rules %}
+<div class="flex justify-between items-center p-3 bg-gray-700 rounded fade-in">
+    <div>
+        <span class="font-bold text-purple-400">{{ rule.rule_type }}</span>
+        <p class="text-sm text-gray-300">{{ rule.config }}</p>
+    </div>
+    <span class="px-2 py-1 bg-green-900 text-green-300 text-xs rounded">Enabled</span>
+</div>
+{% empty %}
+<p class="text-gray-400">No active rules.</p>
+{% endfor %}

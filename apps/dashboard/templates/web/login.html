@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="h-screen w-full flex flex-col items-center justify-center">
+    <h1 class="text-6xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent mb-4">
+        Lithium Bot</h1>
+    <p class="text-xl text-gray-400 mb-8">The next generation Discord bot ecosystem.</p>
+
+    {% if error %}
+    <div class="bg-red-500 text-white p-3 rounded mb-4">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <a href="{% url 'discord_login' %}"
+        class="px-8 py-3 bg-[#5865F2] hover:bg-[#4752C4] rounded-lg font-bold transition-all shadow-lg hover:shadow-xl flex items-center gap-2 text-white">
+        <span>Login with Discord</span>
+    </a>
+</div>
+{% endblock %}
