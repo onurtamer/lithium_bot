@@ -1,4 +1,4 @@
-name: lithium_bot_prod
+version: '3.8'
 
 services:
   postgres:
