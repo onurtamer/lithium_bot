@@ -8,53 +8,7 @@ from datetime import datetime, timedelta
 import random
 import asyncio
 
-class BlackjackView(discord.ui.View):
-    def __init__(self, player_id, game_logic):
-        super().__init__(timeout=60)
-        self.player_id = player_id
-        self.game = game_logic
-        self.finished = False
-
-    @discord.ui.button(label="Hit", style=discord.ButtonStyle.success)
-    async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.player_id: return
-        
-        await interaction.response.defer()
-        card = self.game.draw_card()
-        self.game.player_hand.append(card)
-        
-        if self.game.calculate_score(self.game.player_hand) > 21:
-            self.finished = True
-            await self.game.end_game(interaction, "bust")
-            self.stop()
-        else:
-            await self.game.update_message(interaction)
-
-    @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger)
-    async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.player_id: return
-        
-        await interaction.response.defer()
-        self.finished = True
-        
-        # Dealer turn
-        while self.game.calculate_score(self.game.dealer_hand) < 17:
-            self.game.dealer_hand.append(self.game.draw_card())
-            
-        dealer_score = self.game.calculate_score(self.game.dealer_hand)
-        player_score = self.game.calculate_score(self.game.player_hand)
-        
-        if dealer_score > 21:
-            result = "dealer_bust"
-        elif dealer_score > player_score:
-            result = "loss"
-        elif dealer_score < player_score:
-            result = "win"
-        else:
-            result = "push"
-            
-        await self.game.end_game(interaction, result)
-        self.stop()
+# Define Games Logic Separately
 
 class BlackjackGame:
     def __init__(self, bot, interaction, amount, profile, db):
@@ -117,8 +71,59 @@ class BlackjackGame:
             
         embed.add_field(name="New Balance", value=f"{self.profile.balance} TL", inline=False)
         await self.db.commit()
-        
+        # Keep db open? No, good practice to close if created locally.
+        # But session was created in Cog command. We'll close there? No, we passed it here.
+        # Ideally, we should close it here if we are done.
+        # However, View might still exist? No, we remove view.
         await interaction.edit_original_response(embed=embed, view=None)
+
+class BlackjackView(discord.ui.View):
+    def __init__(self, player_id, game_logic):
+        super().__init__(timeout=60)
+        self.player_id = player_id
+        self.game = game_logic
+        self.finished = False
+
+    @discord.ui.button(label="Hit", style=discord.ButtonStyle.success)
+    async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.player_id: return
+        
+        await interaction.response.defer()
+        card = self.game.draw_card()
+        self.game.player_hand.append(card)
+        
+        if self.game.calculate_score(self.game.player_hand) > 21:
+            self.finished = True
+            await self.game.end_game(interaction, "bust")
+            self.stop()
+        else:
+            await self.game.update_message(interaction)
+
+    @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger)
+    async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.player_id: return
+        
+        await interaction.response.defer()
+        self.finished = True
+        
+        # Dealer turn
+        while self.game.calculate_score(self.game.dealer_hand) < 17:
+            self.game.dealer_hand.append(self.game.draw_card())
+            
+        dealer_score = self.game.calculate_score(self.game.dealer_hand)
+        player_score = self.game.calculate_score(self.game.player_hand)
+        
+        if dealer_score > 21:
+            result = "dealer_bust"
+        elif dealer_score > player_score:
+            result = "loss"
+        elif dealer_score < player_score:
+            result = "win"
+        else:
+            result = "push"
+            
+        await self.game.end_game(interaction, result)
+        self.stop()
 
 class Economy(commands.Cog):
     def __init__(self, bot):
@@ -205,13 +210,6 @@ class Economy(commands.Cog):
         if amount > self.max_bet:
             return await interaction.response.send_message(f"❌ Max bet limit is **{self.max_bet} TL**!", ephemeral=True)
 
-        # We can't use 'async with' here because session needs to persist across the view interactions
-        # We will manually close it in the game end logic or rely on session management in the View
-        # HOWEVER, the best practice with Views that persist is tricky with sessions.
-        # Simpler approach: Check balance now, start game. Update balance at end with a NEW session.
-        # BUT concurrency issue: User could bet same money twice.
-        # Solution: Deduct money NOW. Refund if push/win.
-        
         db = AsyncSessionLocal()
         try:
             profile = await self.get_profile(db, str(interaction.guild_id), str(interaction.user.id))
@@ -227,10 +225,6 @@ class Economy(commands.Cog):
             view = BlackjackView(interaction.user.id, game)
             
             await interaction.response.send_message(embed=embed, view=view)
-            
-            # View handles the rest. IMPORTANT: db.close() must be called eventually.
-            # We can rely on garbage collection or attach cleanup to view.stop()
-            # For this simple bot, we'll keep db open until game ends in end_game().
             
         except Exception as e:
             await db.close()

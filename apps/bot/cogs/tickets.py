@@ -73,7 +73,7 @@ class TicketCreateSelect(discord.ui.Select):
             discord.SelectOption(label="Billing", description="Payments and donations", emoji="💳", value="billing"),
             discord.SelectOption(label="Report", description="Report a user or bug", emoji="⚠️", value="report"),
         ]
-        super().__init__(placeholder="Select a category...", min_values=1, max_values=1, custom_id="ticket_category_select")
+        super().__init__(placeholder="Select a category...", min_values=1, max_values=1, custom_id="ticket_category_select", options=options)
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
