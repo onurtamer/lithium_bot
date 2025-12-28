@@ -69,7 +69,11 @@ class LithiumBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Failed to load extension {extension}: {e}")
 
-        logger.info("Slash commands synced.")
+        try:
+            await self.tree.sync()
+            logger.info("Slash commands synced.")
+        except Exception as e:
+            logger.error(f"Failed to sync slash commands: {e}")
 
     async def on_ready(self):
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
