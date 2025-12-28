@@ -5,6 +5,8 @@ import asyncio
 import logging
 import sys
 import traceback
+from alembic.config import Config
+from alembic import command
 
 # Add project root to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -35,7 +37,18 @@ class LithiumBot(commands.Bot):
 
     async def setup_hook(self):
         logger.info("Setting up Lithium Bot...")
-        
+
+        # Run Database Migrations Automatically
+        try:
+            logger.info("Checking for database migrations...")
+            alembic_cfg = Config("alembic.ini")
+            # We need to run this in an executor because it's blocking
+            await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
+            logger.info("Database migrations applied successfully.")
+        except Exception as e:
+            logger.error(f"Failed to apply database migrations: {e}")
+            traceback.print_exc()
+
         # Start Health Check Server
         from aiohttp import web
         async def health_check(request):
