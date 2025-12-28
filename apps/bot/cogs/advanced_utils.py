@@ -78,7 +78,7 @@ class AdvancedUtils(commands.Cog):
                     await db.commit()
 
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionAddEvent):
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         if str(payload.emoji) != "⭐":
             return
 

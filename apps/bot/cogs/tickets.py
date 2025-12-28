@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from lithium_core.database.session import AsyncSessionLocal
-from lithium_core.models.tickets import Ticket, TicketConfig
+from lithium_core.models.tickets import Ticket
 from lithium_core.models.core import Guild
 import asyncio
 from sqlalchemy import select

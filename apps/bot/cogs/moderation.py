@@ -22,7 +22,7 @@ class ConfirmationView(discord.ui.View):
         self.stop()
         await interaction.response.defer()
 
-    @discord.ui.button(label="Cancel", style=discord.Color.grey())
+    @discord.ui.button(label="Cancel", style=discord.Color.light_grey())
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = False
         self.stop()

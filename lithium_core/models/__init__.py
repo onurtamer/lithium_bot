@@ -11,4 +11,5 @@ from .advanced import (
     VerificationConfig, CaseNote, LogRoute
 )
 from .raid import QuarantineConfig, QuarantineLog
-from .embeds import EmbedConfig
+from .social import ReactionRoleMenu
+from .embeds import EmbedConfig, WelcomeConfig
