@@ -30,6 +30,7 @@ class TicketMessage(Base, TimestampMixin):
 
 class TicketConfig(Base, TimestampMixin):
     __tablename__ = "ticket_configs"
+    __table_args__ = {'extend_existing': True}
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     guild_id: Mapped[str] = mapped_column(String, unique=True, index=True)

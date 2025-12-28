@@ -5,6 +5,7 @@ from datetime import datetime
 
 class EconomyProfile(Base, TimestampMixin):
     __tablename__ = "economy_profiles"
+    __table_args__ = {'extend_existing': True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     guild_id: Mapped[str] = mapped_column(String, index=True)

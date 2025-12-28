@@ -5,7 +5,8 @@ from typing import Optional
 
 class ReactionRoleMenu(Base, TimestampMixin):
     __tablename__ = "reaction_role_menus"
-
+    __table_args__ = {'extend_existing': True}
+    
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     guild_id: Mapped[str] = mapped_column(String, index=True)
     message_id: Mapped[str] = mapped_column(String, unique=True)
