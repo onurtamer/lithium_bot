@@ -29,13 +29,22 @@ class LithiumBot(commands.Bot):
         intents.members = True
         intents.guilds = True
         
-        super().__init__(
-            command_prefix="!",
             intents=intents,
             help_command=None
         )
 
+    async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        error_msg = str(error)
+        logger.error(f"App command error: {error_msg}")
+        traceback.print_exc()
+        
+        if interaction.response.is_done():
+            await interaction.followup.send(f"⚠️ An error occurred: `{error_msg}`", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"⚠️ An error occurred: `{error_msg}`", ephemeral=True)
+
     async def setup_hook(self):
+        self.tree.on_error = self.on_app_command_error
         logger.info("Setting up Lithium Bot...")
 
         # Run Database Migrations Automatically
