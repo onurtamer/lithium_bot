@@ -50,6 +50,12 @@ class LithiumBot(commands.Bot):
         logger.info("Health check server started on port 8080")
 
         # Load Cogs
+        from apps.bot.cogs.tickets import TicketView, TicketControlView
+        
+        # Register Persistent Views
+        self.add_view(TicketView(self, []))
+        self.add_view(TicketControlView(self))
+
         extensions = [
             'apps.bot.cogs.moderation',
             'apps.bot.cogs.automod',

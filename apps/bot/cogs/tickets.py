@@ -148,6 +148,7 @@ class Tickets(commands.Cog):
     @app_commands.command(name="setup_tickets", description="Setup ticket panel")
     @app_commands.checks.has_permissions(administrator=True)
     async def setup_tickets(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
+        await interaction.response.defer(ephemeral=True)
         target_channel = channel or interaction.channel
         
         async with AsyncSessionLocal() as db:
@@ -164,7 +165,7 @@ class Tickets(commands.Cog):
         
         view = TicketView(self.bot, categories)
         await target_channel.send(embed=embed, view=view)
-        await interaction.response.send_message(f"Ticket panel sent to {target_channel.mention}", ephemeral=True)
+        await interaction.followup.send(f"Ticket panel sent to {target_channel.mention}", ephemeral=True)
 
     @app_commands.command(name="ticket_set_role", description="Set support staff role")
     @app_commands.checks.has_permissions(administrator=True)
