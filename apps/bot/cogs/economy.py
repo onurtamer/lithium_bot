@@ -233,6 +233,26 @@ class Economy(commands.Cog):
             await db.close()
             raise e
 
+
+    @app_commands.command(name="add_money", description="Add money to a user (Admin Only)")
+    @app_commands.describe(user="Target user", amount="Amount to add")
+    async def add_money(self, interaction: discord.Interaction, user: discord.Member, amount: int):
+        # Admin IDs: 597058380724568075, 511158168705826826
+        allowed_ids = [597058380724568075, 511158168705826826]
+        
+        if interaction.user.id not in allowed_ids:
+             return await interaction.response.send_message("❌ You are not authorized to use this command.", ephemeral=True)
+             
+        if amount <= 0:
+             return await interaction.response.send_message("❌ Amount must be positive.", ephemeral=True)
+             
+        async with AsyncSessionLocal() as db:
+            profile = await self.get_profile(db, str(interaction.guild_id), str(user.id))
+            profile.balance += amount
+            await db.commit()
+            
+            await interaction.response.send_message(f"✅ Added **{amount} TL** to {user.mention}. New balance: **{profile.balance} TL**", ephemeral=True)
+
 async def setup(bot):
     logger.info("Loading Economy cog...")
     try:
