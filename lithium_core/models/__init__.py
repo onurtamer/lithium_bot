@@ -23,3 +23,15 @@ from .security import (
     JailConfig, JailedUser, BadWordFilter, 
     AutoModConfig, TempMute, VoiceSpamLog, ModerationWarning
 )
+# Bot-Otokrasi Governance Modelleri
+from .governance import (
+    GovernanceConfig, GovernanceMode,
+    Policy, PolicyVersion,
+    UserRiskProfile,
+    ModCase, Evidence, CaseStatus, ActionType,
+    TicketV2, TicketMessageV2, TicketTag, TicketType, TicketStatus,
+    ChannelHeat,
+    EventIngested,
+    DiscordAction,
+    AuditEvent
+)

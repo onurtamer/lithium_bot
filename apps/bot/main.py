@@ -86,6 +86,10 @@ class LithiumBot(commands.Bot):
             'apps.bot.cogs.suggestions',        # Öneri sistemi
             'apps.bot.cogs.extended_utility',   # Userinfo, avatar, hava durumu, döviz
             'apps.bot.cogs.reaction_roles',     # Tepki rolleri
+            # Bot-Otokrasi Governance modülü
+            'apps.bot.cogs.governance.pipeline',    # Event pipeline
+            'apps.bot.cogs.governance.safe_mode',   # Safe mode & lockdown
+            'apps.bot.cogs.governance.tickets_v2',  # Report, complaint, request, appeal
         ]
         
         for extension in extensions:
