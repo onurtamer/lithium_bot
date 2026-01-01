@@ -15,3 +15,11 @@ from .social import ReactionRoleMenu
 from .embeds import EmbedConfig, WelcomeConfig
 from .economy import EconomyProfile
 from .tickets import TicketConfig
+from .fun import (
+    Giveaway, Birthday, BirthdayConfig, 
+    Suggestion, SuggestionConfig, DuelStats
+)
+from .security import (
+    JailConfig, JailedUser, BadWordFilter, 
+    AutoModConfig, TempMute, VoiceSpamLog, ModerationWarning
+)

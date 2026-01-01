@@ -5,6 +5,7 @@ from lithium_core.database.session import AsyncSessionLocal
 from lithium_core.models.leveling import UserLevel as LevelingState, LevelingConfig, LevelReward
 from lithium_core.models.core import Guild
 from sqlalchemy import select
+from typing import Optional
 import time
 import math
 

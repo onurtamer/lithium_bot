@@ -78,6 +78,14 @@ class LithiumBot(commands.Bot):
             'apps.bot.cogs.economy',
             'apps.bot.cogs.report',
             'apps.bot.cogs.welcome',
+            # Yeni eklenen cog'lar
+            'apps.bot.cogs.audit_logging',      # Gelişmiş loglama
+            'apps.bot.cogs.advanced_automod',   # Küfür, caps, link, spam koruması
+            'apps.bot.cogs.jail',               # Jail ve mute sistemi
+            'apps.bot.cogs.fun',                # Çekiliş, doğum günü, düello, aşk ölçer
+            'apps.bot.cogs.suggestions',        # Öneri sistemi
+            'apps.bot.cogs.extended_utility',   # Userinfo, avatar, hava durumu, döviz
+            'apps.bot.cogs.reaction_roles',     # Tepki rolleri
         ]
         
         for extension in extensions:
