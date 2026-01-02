@@ -212,9 +212,21 @@ def run_migrations():
 async def run_migrations_async():
     """Async version of migration runner called from main.py"""
     db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        logger.error("DATABASE_URL missing.")
+        return
+
+    # Ensure async driver
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
     
     # 1. Force Schema (Idempotent)
-    await ensure_schema_async(db_url)
+    try:
+        await ensure_schema_async(db_url)
+    except Exception as e:
+        logger.error(f"Schema fix failed: {e}")
+        # Continue to alembic attempt? No, if schema fix fails, likely connection issue.
+        return
     
     # 2. Sync Alembic Version
     # We run blocking alembic commands in a thread or just hope they work fast.
