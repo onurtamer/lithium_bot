@@ -1,7 +1,7 @@
 """Bot Autocracy Tables - Governance, Policies, Risk, Cases
 
 Revision ID: bot_autocracy_001
-Revises: 
+Revises: 7bd60a5ba720
 Create Date: 2026-01-02
 """
 from alembic import op
@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 # revision identifiers, used by Alembic.
 revision = 'bot_autocracy_001'
-down_revision = None  # Update with previous revision if exists
+down_revision = '7bd60a5ba720' # add_log_route
 branch_labels = None
 depends_on = None
 
@@ -299,8 +299,73 @@ def upgrade():
     op.create_index('idx_audit_actor', 'audit_events', ['actor_id'])
     op.create_index('idx_audit_type', 'audit_events', ['event_type'])
 
+    # 14. Giveaways
+    op.create_table(
+        'giveaways',
+        sa.Column('id', sa.BigInteger(), primary_key=True),
+        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('channel_id', sa.String(20), nullable=False),
+        sa.Column('message_id', sa.String(20), nullable=False),
+        sa.Column('host_id', sa.String(20)),
+        sa.Column('prize', sa.String(255)),
+        sa.Column('winner_count', sa.Integer(), server_default='1'),
+        sa.Column('ends_at', sa.DateTime()),
+        sa.Column('ended', sa.Boolean(), server_default='false'),
+        sa.Column('winners', JSONB(), server_default='[]'),
+        sa.Column('required_role_id', sa.String(20)),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now()),
+    )
+
+    # 15. Birthdays
+    op.create_table(
+        'birthdays',
+        sa.Column('id', sa.BigInteger(), primary_key=True),
+        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('user_id', sa.String(20), nullable=False),
+        sa.Column('day', sa.Integer(), nullable=False),
+        sa.Column('month', sa.Integer(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now()),
+    )
+    op.create_unique_constraint('uq_birthdays_user', 'birthdays', ['guild_id', 'user_id'])
+
+    # 16. Temp Mutes
+    op.create_table(
+        'temp_mutes',
+        sa.Column('id', sa.BigInteger(), primary_key=True),
+        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('user_id', sa.String(20), nullable=False),
+        sa.Column('moderator_id', sa.String(20)),
+        sa.Column('reason', sa.Text()),
+        sa.Column('muted_at', sa.DateTime(), server_default=sa.func.now()),
+        sa.Column('unmute_at', sa.DateTime()),
+        sa.Column('active', sa.Boolean(), server_default='true'),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now()),
+    )
+
+    # 17. Jailed Users
+    op.create_table(
+        'jailed_users',
+        sa.Column('id', sa.BigInteger(), primary_key=True),
+        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('user_id', sa.String(20), nullable=False),
+        sa.Column('jailed_by', sa.String(20)),
+        sa.Column('reason', sa.Text()),
+        sa.Column('previous_roles', JSONB(), server_default='[]'),
+        sa.Column('jailed_at', sa.DateTime(), server_default=sa.func.now()),
+        sa.Column('release_at', sa.DateTime()),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now()),
+    )
+
 
 def downgrade():
+    op.drop_table('jailed_users')
+    op.drop_table('temp_mutes')
+    op.drop_table('birthdays')
+    op.drop_table('giveaways')
     op.drop_table('audit_events')
     op.drop_table('discord_actions')
     op.drop_table('events_ingested')
