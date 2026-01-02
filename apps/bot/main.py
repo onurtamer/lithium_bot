@@ -41,18 +41,19 @@ class LithiumBot(commands.Bot):
         self.tree.on_error = self.on_app_command_error
         logger.info("Setting up Lithium Bot...")
 
+        # Global Error handler setup
+        self.tree.on_error = self.on_app_command_error
+        logger.info("Setting up Lithium Bot...")
+
         # --- AUTO DB MIGRATION ---
         try:
-            from apps.bot.utils.db_setup import run_migrations
-            logger.info("Checking database schema...")
-            # We run this synchronously because we can't proceed without DB
-            # Ensure it doesn't block asyncio loop for too long if checking connection
-            # But here run_migrations uses blocking alembic calls anyway.
-            # In production, this runs fast.
-            run_migrations()
+            from apps.bot.utils.db_setup import run_migrations_async
+            logger.info("Checking database schema (Self-Healing)...")
+            await run_migrations_async()
+            logger.info("Database schema verification completed.")
         except Exception as e:
             logger.error(f"Startup DB Migration failed: {e}")
-            # We continue, but warn.
+            traceback.print_exc()
         # -------------------------
 
         # Start Health Check Server
