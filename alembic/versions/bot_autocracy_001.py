@@ -1,6 +1,6 @@
 """Bot Autocracy Tables - Governance, Policies, Risk, Cases
 
-Revision ID: bot_autocracy_001
+Revision ID: 4e1d9b3a5c2f
 Revises: 7bd60a5ba720
 Create Date: 2026-01-02
 """
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
 # revision identifiers, used by Alembic.
-revision = 'bot_autocracy_001'
+revision = '4e1d9b3a5c2f'
 down_revision = '7bd60a5ba720' # add_log_route
 branch_labels = None
 depends_on = None
@@ -20,9 +20,9 @@ def upgrade():
     op.create_table(
         'governance_configs',
         sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), unique=True, nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), unique=True, nullable=False),
         sa.Column('governance_mode', sa.String(20), server_default='bot_autocracy'),
-        sa.Column('owner_id', sa.String(20)),
+        sa.Column('owner_id', sa.BigInteger()),
         sa.Column('shard_id', sa.Integer()),
         sa.Column('lockdown_active', sa.Boolean(), server_default='false'),
         sa.Column('lockdown_started_at', sa.DateTime()),
@@ -30,7 +30,7 @@ def upgrade():
         sa.Column('lockdown_expires_at', sa.DateTime()),
         sa.Column('safe_mode_active', sa.Boolean(), server_default='false'),
         sa.Column('safe_mode_started_at', sa.DateTime()),
-        sa.Column('safe_mode_by', sa.String(20)),
+        sa.Column('safe_mode_by', sa.BigInteger()),
         sa.Column('raid_join_threshold', sa.Integer(), server_default='15'),
         sa.Column('raid_window_seconds', sa.Integer(), server_default='60'),
         sa.Column('newcomer_duration_hours', sa.Integer(), server_default='24'),
@@ -42,13 +42,13 @@ def upgrade():
         sa.Column('opsadmin_role_ids', JSONB(), server_default='[]'),
         sa.Column('triage_role_ids', JSONB(), server_default='[]'),
         sa.Column('reviewer_role_ids', JSONB(), server_default='[]'),
-        sa.Column('newcomer_role_id', sa.String(20)),
-        sa.Column('verified_role_id', sa.String(20)),
-        sa.Column('quarantine_role_id', sa.String(20)),
-        sa.Column('mod_log_channel_id', sa.String(20)),
-        sa.Column('audit_log_channel_id', sa.String(20)),
-        sa.Column('alerts_channel_id', sa.String(20)),
-        sa.Column('new_members_channel_id', sa.String(20)),
+        sa.Column('newcomer_role_id', sa.BigInteger()),
+        sa.Column('verified_role_id', sa.BigInteger()),
+        sa.Column('quarantine_role_id', sa.BigInteger()),
+        sa.Column('mod_log_channel_id', sa.BigInteger()),
+        sa.Column('audit_log_channel_id', sa.BigInteger()),
+        sa.Column('alerts_channel_id', sa.BigInteger()),
+        sa.Column('new_members_channel_id', sa.BigInteger()),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now()),
     )
@@ -58,7 +58,7 @@ def upgrade():
     op.create_table(
         'policies',
         sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
         sa.Column('rule_id', sa.String(100), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('description', sa.Text()),
@@ -66,7 +66,7 @@ def upgrade():
         sa.Column('version', sa.Integer(), server_default='1'),
         sa.Column('is_active', sa.Boolean(), server_default='true'),
         sa.Column('priority', sa.Integer(), server_default='500'),
-        sa.Column('created_by', sa.String(20)),
+        sa.Column('created_by', sa.BigInteger()),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now()),
         sa.UniqueConstraint('guild_id', 'rule_id', name='uq_policy_guild_rule'),
@@ -82,7 +82,7 @@ def upgrade():
         sa.Column('policy_id', sa.Integer(), sa.ForeignKey('policies.id'), nullable=False),
         sa.Column('version', sa.Integer(), nullable=False),
         sa.Column('policy_json', JSONB(), nullable=False),
-        sa.Column('changed_by', sa.String(20)),
+        sa.Column('changed_by', sa.BigInteger()),
         sa.Column('change_reason', sa.Text()),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
     )
@@ -92,8 +92,8 @@ def upgrade():
     op.create_table(
         'user_risk_profiles',
         sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
-        sa.Column('user_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
+        sa.Column('user_id', sa.BigInteger(), nullable=False),
         sa.Column('account_age_days', sa.Integer()),
         sa.Column('server_age_hours', sa.Integer()),
         sa.Column('has_avatar', sa.Boolean()),
@@ -130,8 +130,8 @@ def upgrade():
         'mod_cases',
         sa.Column('id', sa.BigInteger(), primary_key=True),
         sa.Column('case_id', sa.String(20), unique=True, nullable=False),
-        sa.Column('guild_id', sa.String(20), nullable=False),
-        sa.Column('user_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
+        sa.Column('user_id', sa.BigInteger(), nullable=False),
         sa.Column('rule_id', sa.String(100)),
         sa.Column('policy_version', sa.Integer()),
         sa.Column('risk_score_at_time', sa.Float()),
@@ -143,8 +143,8 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('executed_at', sa.DateTime()),
         sa.Column('expires_at', sa.DateTime()),
-        sa.Column('channel_id', sa.String(20)),
-        sa.Column('message_id', sa.String(20)),
+        sa.Column('channel_id', sa.BigInteger()),
+        sa.Column('message_id', sa.BigInteger()),
         sa.Column('reason', sa.Text()),
     )
     op.create_index('idx_cases_guild', 'mod_cases', ['guild_id', 'created_at'])
@@ -175,11 +175,11 @@ def upgrade():
         'tickets_v2',
         sa.Column('id', sa.BigInteger(), primary_key=True),
         sa.Column('ticket_id', sa.String(20), unique=True, nullable=False),
-        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
         sa.Column('ticket_type', sa.String(20), nullable=False),
-        sa.Column('creator_id', sa.String(20), nullable=False),
-        sa.Column('subject_id', sa.String(20)),
-        sa.Column('assigned_to', sa.String(20)),
+        sa.Column('creator_id', sa.BigInteger(), nullable=False),
+        sa.Column('subject_id', sa.BigInteger()),
+        sa.Column('assigned_to', sa.BigInteger()),
         sa.Column('related_case_id', sa.BigInteger(), sa.ForeignKey('mod_cases.id')),
         sa.Column('status', sa.String(20), server_default='opened'),
         sa.Column('priority', sa.Integer(), server_default='5'),
@@ -203,7 +203,7 @@ def upgrade():
         'ticket_messages_v2',
         sa.Column('id', sa.BigInteger(), primary_key=True),
         sa.Column('ticket_id', sa.BigInteger(), sa.ForeignKey('tickets_v2.id'), nullable=False),
-        sa.Column('author_id', sa.String(20), nullable=False),
+        sa.Column('author_id', sa.BigInteger(), nullable=False),
         sa.Column('author_role', sa.String(20)),
         sa.Column('content', sa.Text(), nullable=False),
         sa.Column('is_internal', sa.Boolean(), server_default='false'),
@@ -215,7 +215,7 @@ def upgrade():
     op.create_table(
         'ticket_tags',
         sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
         sa.Column('name', sa.String(50), nullable=False),
         sa.Column('color', sa.String(7)),
         sa.Column('description', sa.Text()),
@@ -226,8 +226,8 @@ def upgrade():
     op.create_table(
         'channel_heat',
         sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
-        sa.Column('channel_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
+        sa.Column('channel_id', sa.BigInteger(), nullable=False),
         sa.Column('heat_score', sa.Float(), server_default='0.0'),
         sa.Column('message_rate', sa.Float(), server_default='0.0'),
         sa.Column('toxicity_rate', sa.Float(), server_default='0.0'),
@@ -246,10 +246,10 @@ def upgrade():
         'events_ingested',
         sa.Column('id', sa.BigInteger(), primary_key=True),
         sa.Column('event_id', sa.String(64), unique=True, nullable=False),
-        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
         sa.Column('event_type', sa.String(50), nullable=False),
-        sa.Column('user_id', sa.String(20)),
-        sa.Column('channel_id', sa.String(20)),
+        sa.Column('user_id', sa.BigInteger()),
+        sa.Column('channel_id', sa.BigInteger()),
         sa.Column('processed_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('processing_time_ms', sa.Integer()),
         sa.Column('shard_id', sa.Integer()),
@@ -262,17 +262,17 @@ def upgrade():
     op.create_table(
         'discord_actions',
         sa.Column('id', sa.BigInteger(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
         sa.Column('action_type', sa.String(50), nullable=False),
-        sa.Column('target_user_id', sa.String(20)),
-        sa.Column('target_channel_id', sa.String(20)),
-        sa.Column('target_message_id', sa.String(20)),
-        sa.Column('triggered_by', sa.String(20), server_default='bot'),
+        sa.Column('target_user_id', sa.BigInteger()),
+        sa.Column('target_channel_id', sa.BigInteger()),
+        sa.Column('target_message_id', sa.BigInteger()),
+        sa.Column('triggered_by', sa.BigInteger()),
         sa.Column('case_id', sa.BigInteger(), sa.ForeignKey('mod_cases.id')),
         sa.Column('executed_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('success', sa.Boolean(), server_default='true'),
         sa.Column('error_message', sa.Text()),
-        sa.Column('discord_audit_id', sa.String(20)),
+        sa.Column('discord_audit_id', sa.BigInteger()),
         sa.Column('action_id', sa.String(64), unique=True, nullable=False),
     )
     op.create_index('idx_actions_guild', 'discord_actions', ['guild_id', 'executed_at'])
@@ -283,12 +283,12 @@ def upgrade():
     op.create_table(
         'audit_events',
         sa.Column('id', sa.BigInteger(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
         sa.Column('event_type', sa.String(50), nullable=False),
-        sa.Column('actor_id', sa.String(20), nullable=False),
+        sa.Column('actor_id', sa.BigInteger(), nullable=False),
         sa.Column('actor_type', sa.String(20)),
         sa.Column('target_type', sa.String(20)),
-        sa.Column('target_id', sa.String(20)),
+        sa.Column('target_id', sa.BigInteger()),
         sa.Column('action', sa.String(50), nullable=False),
         sa.Column('details', JSONB()),
         sa.Column('case_id', sa.BigInteger()),
@@ -303,16 +303,16 @@ def upgrade():
     op.create_table(
         'giveaways',
         sa.Column('id', sa.BigInteger(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
-        sa.Column('channel_id', sa.String(20), nullable=False),
-        sa.Column('message_id', sa.String(20), nullable=False),
-        sa.Column('host_id', sa.String(20)),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
+        sa.Column('channel_id', sa.BigInteger(), nullable=False),
+        sa.Column('message_id', sa.BigInteger(), nullable=False),
+        sa.Column('host_id', sa.BigInteger()),
         sa.Column('prize', sa.String(255)),
         sa.Column('winner_count', sa.Integer(), server_default='1'),
         sa.Column('ends_at', sa.DateTime()),
         sa.Column('ended', sa.Boolean(), server_default='false'),
         sa.Column('winners', JSONB(), server_default='[]'),
-        sa.Column('required_role_id', sa.String(20)),
+        sa.Column('required_role_id', sa.BigInteger()),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now()),
     )
@@ -321,8 +321,8 @@ def upgrade():
     op.create_table(
         'birthdays',
         sa.Column('id', sa.BigInteger(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
-        sa.Column('user_id', sa.String(20), nullable=False),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
+        sa.Column('user_id', sa.BigInteger(), nullable=False),
         sa.Column('day', sa.Integer(), nullable=False),
         sa.Column('month', sa.Integer(), nullable=False),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
@@ -334,9 +334,9 @@ def upgrade():
     op.create_table(
         'temp_mutes',
         sa.Column('id', sa.BigInteger(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
-        sa.Column('user_id', sa.String(20), nullable=False),
-        sa.Column('moderator_id', sa.String(20)),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
+        sa.Column('user_id', sa.BigInteger(), nullable=False),
+        sa.Column('moderator_id', sa.BigInteger()),
         sa.Column('reason', sa.Text()),
         sa.Column('muted_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('unmute_at', sa.DateTime()),
@@ -349,9 +349,9 @@ def upgrade():
     op.create_table(
         'jailed_users',
         sa.Column('id', sa.BigInteger(), primary_key=True),
-        sa.Column('guild_id', sa.String(20), nullable=False),
-        sa.Column('user_id', sa.String(20), nullable=False),
-        sa.Column('jailed_by', sa.String(20)),
+        sa.Column('guild_id', sa.BigInteger(), nullable=False),
+        sa.Column('user_id', sa.BigInteger(), nullable=False),
+        sa.Column('jailed_by', sa.BigInteger()),
         sa.Column('reason', sa.Text()),
         sa.Column('previous_roles', JSONB(), server_default='[]'),
         sa.Column('jailed_at', sa.DateTime(), server_default=sa.func.now()),
