@@ -195,7 +195,7 @@ async def main():
     bot = LithiumBot()
 
     @bot.command()
-    @commands.is_owner()
+    @commands.check_any(commands.is_owner(), commands.has_permissions(administrator=True))
     async def sync(ctx):
         """Sync commands to the current guild immediately."""
         try:
