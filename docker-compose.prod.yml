@@ -47,6 +47,8 @@ services:
         limits:
           cpus: '0.50'
           memory: 512M
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,6 +78,8 @@ services:
         limits:
           cpus: '0.50'
           memory: 512M
+    ports:
+      - "3000:3000"
     depends_on:
       - api
     healthcheck:
