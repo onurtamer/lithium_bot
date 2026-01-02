@@ -318,7 +318,7 @@ class ExtendedUtility(commands.Cog):
     async def currency(
         self, 
         interaction: discord.Interaction, 
-        amount: float = 1,
+        amount: float = 1.0,
         from_currency: str = "USD",
         to_currency: str = "TRY"
     ):

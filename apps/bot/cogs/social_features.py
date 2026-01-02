@@ -67,7 +67,7 @@ class SocialFeatures(commands.Cog):
         await interaction.response.send_message(f"✅ Custom command `!{name}` added.", ephemeral=True)
 
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionAddEvent):
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         if payload.member.bot: return
         
         async with AsyncSessionLocal() as db:

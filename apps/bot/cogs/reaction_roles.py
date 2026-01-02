@@ -74,7 +74,7 @@ class ReactionRoles(commands.Cog):
                     logger.error(f"Cannot add role {role.name} to {payload.member}")
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionRemoveEvent):
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         """Reaction kaldırıldığında rolü al"""
         async with AsyncSessionLocal() as db:
             stmt = select(ReactionRoleMenu).where(
