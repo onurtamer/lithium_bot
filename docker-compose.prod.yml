@@ -47,8 +47,6 @@ services:
         limits:
           cpus: '0.50'
           memory: 512M
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,8 +76,6 @@ services:
         limits:
           cpus: '0.50'
           memory: 512M
-    ports:
-      - "3000:3000"
     depends_on:
       - api
     healthcheck:
@@ -87,6 +83,24 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # Reverse Proxy & SSL Manager
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - EMAIL=${EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
 
   celery-worker:
     build:
@@ -151,3 +165,5 @@ services:
 volumes:
   postgres_data_prod:
   redis_data_prod:
+  caddy_data:
+  caddy_config:

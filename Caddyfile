@@ -1,0 +1,25 @@
+{
+    email {$EMAIL}
+}
+
+{$DOMAIN_NAME} {
+    # API Routes (Strip /api prefix)
+    handle_path /api/* {
+        reverse_proxy api:8000
+    }
+
+    # API Documentation (Swagger UI) - Special case to ensure assets load
+    handle_path /docs* {
+        reverse_proxy api:8000
+    }
+    
+    # OpenAPI JSON (Redoc/Swagger need this)
+    handle_path /openapi.json {
+        reverse_proxy api:8000
+    }
+
+    # Frontend (Next.js)
+    handle {
+        reverse_proxy web:3000
+    }
+}
