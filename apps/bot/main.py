@@ -37,10 +37,23 @@ class LithiumBot(commands.Bot):
         else:
             await interaction.response.send_message(f"⚠️ An error occurred: `{error_msg}`", ephemeral=True)
 
-    async def setup_hook(self):
         # Global Error handler setup
         self.tree.on_error = self.on_app_command_error
         logger.info("Setting up Lithium Bot...")
+
+        # --- AUTO DB MIGRATION ---
+        try:
+            from apps.bot.utils.db_setup import run_migrations
+            logger.info("Checking database schema...")
+            # We run this synchronously because we can't proceed without DB
+            # Ensure it doesn't block asyncio loop for too long if checking connection
+            # But here run_migrations uses blocking alembic calls anyway.
+            # In production, this runs fast.
+            run_migrations()
+        except Exception as e:
+            logger.error(f"Startup DB Migration failed: {e}")
+            # We continue, but warn.
+        # -------------------------
 
         # Start Health Check Server
         from aiohttp import web
