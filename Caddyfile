@@ -8,12 +8,12 @@
         reverse_proxy api:8000
     }
 
-    # API Documentation (Swagger UI) - Special case to ensure assets load
+    # API Documentation (Swagger UI)
     handle_path /docs* {
         reverse_proxy api:8000
     }
     
-    # OpenAPI JSON (Redoc/Swagger need this)
+    # OpenAPI JSON
     handle_path /openapi.json {
         reverse_proxy api:8000
     }
