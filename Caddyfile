@@ -1,8 +1,6 @@
 {$DOMAIN_NAME} {
-    # Bypass Let's Encrypt Rate Limit using ZeroSSL
-    tls {$EMAIL} {
-        issuer zerossl
-    }
+    # Let's Encrypt Rate Limit is expired, we can use standard HTTPS now.
+    # No strict email requirement to avoid crashes.
 
     # API Routes (Strip /api prefix)
     handle_path /api/* {
