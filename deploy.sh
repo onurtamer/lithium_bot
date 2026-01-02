@@ -15,6 +15,11 @@ sudo docker-compose -f docker-compose.prod.yml down --remove-orphans || true
 echo "🧹 Cleaning up old containers to prevent conflicts..."
 sudo docker ps -a --filter "name=lithium" -q | xargs -r sudo docker rm -f || true
 
+# 2.1 Kill processes occupying ports 80/443 (e.g. apache, nginx)
+echo "🔌 Freeing ports 80/443..."
+sudo fuser -k 80/tcp || true
+sudo fuser -k 443/tcp || true
+
 # 3. Pull latest changes
 echo "⬇️ Ensuring code is up to date..."
 git pull
