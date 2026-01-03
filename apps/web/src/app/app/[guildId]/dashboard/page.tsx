@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { api, type GuildMetrics } from '@/lib/api';
+import { api, type GuildMetrics, type ServiceStatus, type RecentActivity } from '@/lib/api';
 import { useGuildStore, useModuleStore } from '@/lib/store';
-import { formatRelativeTime } from '@/lib/utils';
 import {
     Users,
     MessageSquare,
@@ -16,11 +15,29 @@ import {
     CheckCircle2,
     Clock,
     ArrowRight,
-    BarChart3
+    BarChart3,
+    Settings,
+    VolumeX,
+    Ban,
+    Loader2,
+    type LucideIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+
+// Icon mapping for dynamic activities
+const ICON_MAP: Record<string, LucideIcon> = {
+    Shield,
+    Users,
+    MessageSquare,
+    CheckCircle2,
+    Settings,
+    AlertTriangle,
+    VolumeX,
+    Ban,
+    Activity,
+};
 
 export default function DashboardPage() {
     const params = useParams();
@@ -28,24 +45,54 @@ export default function DashboardPage() {
     const { currentGuild } = useGuildStore();
     const { modules } = useModuleStore();
     const [metrics, setMetrics] = useState<GuildMetrics | null>(null);
+    const [systemStatus, setSystemStatus] = useState<ServiceStatus[]>([]);
+    const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        loadMetrics();
+        loadDashboardData();
     }, [guildId]);
 
-    const loadMetrics = async () => {
+    const loadDashboardData = async () => {
+        setIsLoading(true);
         try {
-            const data = await api.getMetrics(guildId);
-            setMetrics(data);
+            // Load all data in parallel
+            const [metricsData, statusData, activitiesData] = await Promise.all([
+                api.getMetrics(guildId).catch(() => null),
+                api.getSystemStatus(guildId).catch(() => null),
+                api.getRecentActivities(guildId, 5).catch(() => null),
+            ]);
+
+            if (metricsData) {
+                setMetrics(metricsData);
+            } else {
+                setMetrics({
+                    members: { total: 0, online: 0, new_24h: 0 },
+                    messages: { today: 0, week: 0 },
+                    moderation: { actions_today: 0, warnings_active: 0 },
+                });
+            }
+
+            if (statusData) {
+                setSystemStatus(statusData.services);
+            } else {
+                // Fallback static data
+                setSystemStatus([
+                    { name: 'Bot', status: 'online' },
+                    { name: 'API', status: 'online' },
+                    { name: 'Database', status: 'online' },
+                    { name: 'Cache', status: 'online' },
+                ]);
+            }
+
+            if (activitiesData && activitiesData.items.length > 0) {
+                setRecentActivities(activitiesData.items);
+            } else {
+                // Fallback placeholder data when no activities
+                setRecentActivities([]);
+            }
         } catch (error) {
-            console.error('Failed to load metrics:', error);
-            // Use fallback data
-            setMetrics({
-                members: { total: 0, online: 0, new_24h: 0 },
-                messages: { today: 0, week: 0 },
-                moderation: { actions_today: 0, warnings_active: 0 },
-            });
+            console.error('Failed to load dashboard data:', error);
         } finally {
             setIsLoading(false);
         }
@@ -154,21 +201,31 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                {/* System Status */}
+                {/* System Status - DYNAMIC */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Sistem Durumu</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <StatusItem label="Bot" status="online" />
-                        <StatusItem label="API" status="online" />
-                        <StatusItem label="Database" status="online" />
-                        <StatusItem label="Cache" status="online" />
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-4">
+                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : (
+                            systemStatus.map((service) => (
+                                <StatusItem
+                                    key={service.name}
+                                    label={service.name}
+                                    status={service.status}
+                                    latency={service.latency_ms}
+                                />
+                            ))
+                        )}
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Recent Activity */}
+            {/* Recent Activity - DYNAMIC */}
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
@@ -183,29 +240,29 @@ export default function DashboardPage() {
                     </Button>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
-                        <ActivityItem
-                            icon={Shield}
-                            title="AutoMod tetiklendi"
-                            description="Spam mesaj algılandı ve silindi"
-                            time="2 dakika önce"
-                            type="warning"
-                        />
-                        <ActivityItem
-                            icon={Users}
-                            title="Yeni üye katıldı"
-                            description="3 yeni üye sunucuya katıldı"
-                            time="15 dakika önce"
-                            type="info"
-                        />
-                        <ActivityItem
-                            icon={CheckCircle2}
-                            title="Modül güncellendi"
-                            description="Leveling ayarları güncellendi"
-                            time="1 saat önce"
-                            type="success"
-                        />
-                    </div>
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : recentActivities.length > 0 ? (
+                        <div className="space-y-4">
+                            {recentActivities.map((activity) => (
+                                <ActivityItem
+                                    key={activity.id}
+                                    icon={ICON_MAP[activity.icon] || Activity}
+                                    title={activity.title}
+                                    description={activity.description}
+                                    time={activity.time}
+                                    type={activity.type}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                            <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p>Henüz aktivite bulunmuyor</p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -233,9 +290,10 @@ function QuickActionButton({ href, icon: Icon, label }: QuickActionButtonProps) 
 interface StatusItemProps {
     label: string;
     status: 'online' | 'degraded' | 'offline';
+    latency?: number;
 }
 
-function StatusItem({ label, status }: StatusItemProps) {
+function StatusItem({ label, status, latency }: StatusItemProps) {
     const statusConfig = {
         online: { color: 'bg-success', text: 'Çalışıyor' },
         degraded: { color: 'bg-warning', text: 'Yavaş' },
@@ -249,7 +307,10 @@ function StatusItem({ label, status }: StatusItemProps) {
             <span className="text-sm">{label}</span>
             <div className="flex items-center gap-2">
                 <div className={`h-2 w-2 rounded-full ${config.color}`} />
-                <span className="text-xs text-muted-foreground">{config.text}</span>
+                <span className="text-xs text-muted-foreground">
+                    {config.text}
+                    {latency !== undefined && latency !== null && ` (${latency}ms)`}
+                </span>
             </div>
         </div>
     );

@@ -132,6 +132,16 @@ class ApiClient {
     async getMetrics(guildId: string): Promise<GuildMetrics> {
         return this.request<GuildMetrics>(`/guilds/${guildId}/metrics`);
     }
+
+    // System Status
+    async getSystemStatus(guildId: string): Promise<SystemStatusResponse> {
+        return this.request<SystemStatusResponse>(`/guilds/${guildId}/system-status`);
+    }
+
+    // Recent Activities
+    async getRecentActivities(guildId: string, limit = 10): Promise<RecentActivitiesResponse> {
+        return this.request<RecentActivitiesResponse>(`/guilds/${guildId}/recent-activities?limit=${limit}`);
+    }
 }
 
 // Custom Error
@@ -302,6 +312,34 @@ export interface PaginatedResponse<T> {
     total: number;
     page: number;
     pages: number;
+}
+
+// System Status Types
+export interface ServiceStatus {
+    name: string;
+    status: 'online' | 'degraded' | 'offline';
+    latency_ms?: number;
+}
+
+export interface SystemStatusResponse {
+    services: ServiceStatus[];
+    timestamp: string;
+}
+
+// Recent Activities Types
+export interface RecentActivity {
+    id: number;
+    icon: string;
+    title: string;
+    description: string;
+    time: string;
+    type: 'success' | 'warning' | 'info' | 'error';
+    created_at: string;
+}
+
+export interface RecentActivitiesResponse {
+    items: RecentActivity[];
+    total: number;
 }
 
 // Module-specific config types

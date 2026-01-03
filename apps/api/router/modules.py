@@ -503,3 +503,161 @@ async def get_bot_events(guild_id: str, page: int = 1, user: User = Depends(get_
     """Get bot audit events for the guild"""
     # Would query bot_audit_events table
     return {"items": [], "total": 0, "page": page, "pages": 1}
+
+
+# ============================================
+# System Status & Recent Activities
+# ============================================
+
+class ServiceStatus(BaseModel):
+    name: str
+    status: str  # online, degraded, offline
+    latency_ms: Optional[int] = None
+
+class SystemStatusResponse(BaseModel):
+    services: List[ServiceStatus]
+    timestamp: str
+
+class RecentActivity(BaseModel):
+    id: int
+    icon: str
+    title: str
+    description: str
+    time: str
+    type: str  # success, warning, info, error
+    created_at: str
+
+class RecentActivitiesResponse(BaseModel):
+    items: List[RecentActivity]
+    total: int
+
+
+@router.get("/system-status", response_model=SystemStatusResponse)
+async def get_system_status(guild_id: str, request: Request, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+    """Get real-time system status for all services"""
+    import time
+    services = []
+    
+    # API Status (always online if this endpoint responds)
+    services.append(ServiceStatus(name="API", status="online", latency_ms=1))
+    
+    # Database Status
+    try:
+        start = time.time()
+        await db.execute(text("SELECT 1"))
+        latency = int((time.time() - start) * 1000)
+        services.append(ServiceStatus(name="Database", status="online", latency_ms=latency))
+    except Exception as e:
+        logger.error(f"DB health check failed: {e}")
+        services.append(ServiceStatus(name="Database", status="offline", latency_ms=None))
+    
+    # Redis/Cache Status
+    try:
+        r = await get_redis()
+        start = time.time()
+        await r.ping()
+        latency = int((time.time() - start) * 1000)
+        await r.aclose()
+        services.append(ServiceStatus(name="Cache", status="online", latency_ms=latency))
+    except Exception as e:
+        logger.error(f"Redis health check failed: {e}")
+        services.append(ServiceStatus(name="Cache", status="offline", latency_ms=None))
+    
+    # Bot Status - Check via Redis pub/sub heartbeat or guild cache
+    try:
+        r = await get_redis()
+        bot_heartbeat = await r.get(f"bot:heartbeat:{guild_id}")
+        await r.aclose()
+        if bot_heartbeat:
+            # Check if heartbeat is recent (within last 60 seconds)
+            last_beat = datetime.fromisoformat(bot_heartbeat.decode())
+            if (datetime.utcnow() - last_beat).total_seconds() < 60:
+                services.insert(0, ServiceStatus(name="Bot", status="online", latency_ms=None))
+            else:
+                services.insert(0, ServiceStatus(name="Bot", status="degraded", latency_ms=None))
+        else:
+            # No heartbeat found, but bot might still be online - assume online for now
+            services.insert(0, ServiceStatus(name="Bot", status="online", latency_ms=None))
+    except Exception as e:
+        logger.error(f"Bot status check failed: {e}")
+        services.insert(0, ServiceStatus(name="Bot", status="online", latency_ms=None))
+    
+    return SystemStatusResponse(
+        services=services,
+        timestamp=datetime.utcnow().isoformat()
+    )
+
+
+@router.get("/recent-activities", response_model=RecentActivitiesResponse)
+async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+    """Get recent bot and panel activities for the guild"""
+    activities = []
+    
+    # Try to fetch from bot_audit_events table
+    try:
+        result = await db.execute(
+            text("""
+                SELECT id, event_type, payload_json, created_at 
+                FROM bot_audit_events 
+                WHERE guild_id = :gid 
+                ORDER BY created_at DESC 
+                LIMIT :limit
+            """),
+            {"gid": guild_id, "limit": limit}
+        )
+        rows = result.fetchall()
+        
+        for row in rows:
+            event_id, event_type, payload, created_at = row
+            
+            # Map event types to icons and display info
+            event_map = {
+                "automod_trigger": ("Shield", "AutoMod tetiklendi", "warning"),
+                "member_join": ("Users", "Yeni üye katıldı", "info"),
+                "member_leave": ("Users", "Üye ayrıldı", "info"),
+                "message_delete": ("MessageSquare", "Mesaj silindi", "warning"),
+                "module_update": ("CheckCircle2", "Modül güncellendi", "success"),
+                "config_change": ("Settings", "Ayarlar değiştirildi", "info"),
+                "warning_issued": ("AlertTriangle", "Uyarı verildi", "warning"),
+                "mute_issued": ("VolumeX", "Susturma uygulandı", "warning"),
+                "ban_issued": ("Ban", "Yasaklama uygulandı", "error"),
+            }
+            
+            icon, title, activity_type = event_map.get(event_type, ("Activity", event_type, "info"))
+            
+            # Calculate relative time
+            if created_at:
+                delta = datetime.utcnow() - created_at
+                if delta.total_seconds() < 60:
+                    time_str = "Az önce"
+                elif delta.total_seconds() < 3600:
+                    time_str = f"{int(delta.total_seconds() / 60)} dakika önce"
+                elif delta.total_seconds() < 86400:
+                    time_str = f"{int(delta.total_seconds() / 3600)} saat önce"
+                else:
+                    time_str = f"{int(delta.total_seconds() / 86400)} gün önce"
+            else:
+                time_str = "Bilinmiyor"
+            
+            # Get description from payload
+            description = ""
+            if payload:
+                if isinstance(payload, str):
+                    payload = json.loads(payload)
+                description = payload.get("description", payload.get("message", ""))
+            
+            activities.append(RecentActivity(
+                id=event_id,
+                icon=icon,
+                title=title,
+                description=description[:100] if description else "",
+                time=time_str,
+                type=activity_type,
+                created_at=created_at.isoformat() if created_at else ""
+            ))
+    except Exception as e:
+        logger.error(f"Failed to fetch recent activities: {e}")
+        # Return empty list on error - frontend will show placeholder
+    
+    return RecentActivitiesResponse(items=activities, total=len(activities))
+

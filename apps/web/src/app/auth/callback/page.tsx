@@ -4,7 +4,7 @@ import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-function CallbackContent() {
+function AuthCallbackContent() {
     const searchParams = useSearchParams();
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -35,10 +35,13 @@ export default function AuthCallbackPage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-background">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-muted-foreground">Yükleniyor...</p>
+                </div>
             </div>
         }>
-            <CallbackContent />
+            <AuthCallbackContent />
         </Suspense>
     );
 }
