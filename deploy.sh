@@ -23,12 +23,6 @@ if [ ! -f .env ]; then
     if [ -f .env.example ]; then
         cp .env.example .env
         echo -e "${YELLOW}Please edit .env file with your production credentials and run this script again.${NC}"
-        # Try to open editor
-        if command -v nano &> /dev/null; then
-            nano .env
-        else
-            echo "Please edit .env manually"
-        fi
         exit 1
     else
         echo -e "${RED}.env.example not found. Please create .env manually.${NC}"
@@ -36,30 +30,45 @@ if [ ! -f .env ]; then
     fi
 fi
 
-# Pull latest changes (if git exists)
+# 1. Force Sync with Git
+# This ensures local files are EXACTLY the same as remote
 if [ -d .git ]; then
-    echo -e "${GREEN}>>> Pulling latest changes from Git...${NC}"
-    git pull origin main
+    echo -e "${GREEN}>>> Fetching latest changes...${NC}"
+    git fetch origin main
+    
+    echo -e "${GREEN}>>> Resetting to origin/main (Force Update)...${NC}"
+    git reset --hard origin/main
+    
+    # Optional: Clean untracked files (Use with caution)
+    # git clean -fd
+else
+    echo -e "${RED}Not a git repository. Skipping git pull.${NC}"
 fi
 
-# stop existing containers
+# 2. Stop Existing Services
 echo -e "${GREEN}>>> Stopping existing services...${NC}"
-docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down --remove-orphans
 
-# Build and start containers
-echo -e "${GREEN}>>> Building and starting services...${NC}"
-docker compose -f docker-compose.prod.yml up -d --build
+# 3. Prune Old Images (Optional but recommended to clear cache)
+# echo -e "${GREEN}>>> Cleaning up old images...${NC}"
+# docker image prune -f
 
-# Wait for database
+# 4. Build and Start Services
+# --build: Yeniden build almayı zorunlu kılar
+# --force-recreate: Konteynerleri sıfırdan oluşturur
+echo -e "${GREEN}>>> Building and starting services (Forced)...${NC}"
+docker compose -f docker-compose.prod.yml up -d --build --force-recreate
+
+# 5. Wait for Database
 echo -e "${GREEN}>>> Waiting for database to initialize...${NC}"
 sleep 10
 
-# Run Migrations
+# 6. Run Migrations
 echo -e "${GREEN}>>> Running Database Migrations...${NC}"
 # Using bot container to run migrations as it has alembic installed
 docker compose -f docker-compose.prod.yml exec -T bot alembic upgrade head
 
-# Check status
+# 7. Check status
 echo -e "${GREEN}>>> Checking Service Status...${NC}"
 docker compose -f docker-compose.prod.yml ps
 
