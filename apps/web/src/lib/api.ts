@@ -142,6 +142,77 @@ class ApiClient {
     async getRecentActivities(guildId: string, limit = 10): Promise<RecentActivitiesResponse> {
         return this.request<RecentActivitiesResponse>(`/guilds/${guildId}/recent-activities?limit=${limit}`);
     }
+
+    // ============================================
+    // V2 API - Production Endpoints
+    // ============================================
+
+    // Dashboard - Single endpoint for all data
+    async getDashboard(guildId: string): Promise<ApiResponse<DashboardData>> {
+        return this.request<ApiResponse<DashboardData>>(`/guilds/${guildId}/dashboard`);
+    }
+
+    // Moderation
+    async getModeration(guildId: string, status?: string, page = 1): Promise<ApiResponse<ModerationResponse>> {
+        const params = new URLSearchParams({ page: String(page) });
+        if (status) params.set('status', status);
+        return this.request<ApiResponse<ModerationResponse>>(`/guilds/${guildId}/moderation?${params}`);
+    }
+
+    async getModerationWarnings(guildId: string): Promise<ApiResponse<WarningsResponse>> {
+        return this.request<ApiResponse<WarningsResponse>>(`/guilds/${guildId}/moderation/warnings`);
+    }
+
+    // Tickets
+    async getTickets(guildId: string, status?: string, page = 1): Promise<ApiResponse<TicketsResponse>> {
+        const params = new URLSearchParams({ page: String(page) });
+        if (status) params.set('status', status);
+        return this.request<ApiResponse<TicketsResponse>>(`/guilds/${guildId}/tickets?${params}`);
+    }
+
+    async updateTicket(guildId: string, ticketId: number, status: string): Promise<ApiResponse<{ updated: boolean }>> {
+        return this.request<ApiResponse<{ updated: boolean }>>(`/guilds/${guildId}/tickets/${ticketId}?status=${status}`, {
+            method: 'PUT',
+        });
+    }
+
+    // Audit Logs v2
+    async getAuditLogsV2(guildId: string, filters: AuditFilters = {}): Promise<ApiResponse<AuditLogsResponse>> {
+        const params = new URLSearchParams();
+        if (filters.action) params.set('action', filters.action);
+        if (filters.actor) params.set('actor', filters.actor);
+        if (filters.from_date) params.set('from_date', filters.from_date);
+        if (filters.to_date) params.set('to_date', filters.to_date);
+        if (filters.page) params.set('page', String(filters.page));
+        return this.request<ApiResponse<AuditLogsResponse>>(`/guilds/${guildId}/audit?${params}`);
+    }
+
+    // Analytics
+    async getAnalytics(guildId: string, metric = 'messages', from_date?: string, to_date?: string): Promise<ApiResponse<AnalyticsResponse>> {
+        const params = new URLSearchParams({ metric });
+        if (from_date) params.set('from_date', from_date);
+        if (to_date) params.set('to_date', to_date);
+        return this.request<ApiResponse<AnalyticsResponse>>(`/guilds/${guildId}/analytics?${params}`);
+    }
+
+    // Settings
+    async getSettings(guildId: string): Promise<ApiResponse<GuildSettings>> {
+        return this.request<ApiResponse<GuildSettings>>(`/guilds/${guildId}/settings`);
+    }
+
+    async updateSettings(guildId: string, settings: GuildSettings): Promise<ApiResponse<{ updated: boolean }>> {
+        return this.request<ApiResponse<{ updated: boolean }>>(`/guilds/${guildId}/settings`, {
+            method: 'PUT',
+            body: JSON.stringify(settings),
+        });
+    }
+
+    // SSE Event Stream
+    createEventSource(guildId: string): EventSource {
+        return new EventSource(`${this.baseUrl}/guilds/${guildId}/events`, {
+            withCredentials: true,
+        });
+    }
 }
 
 // Custom Error
@@ -434,3 +505,155 @@ export interface ReactionRoleMenu {
         description?: string;
     }>;
 }
+
+// ============================================
+// V2 API Types
+// ============================================
+
+export interface ApiResponse<T> {
+    ok: boolean;
+    data: T;
+    meta: {
+        request_id: string;
+        timestamp: string;
+    };
+}
+
+export interface MemberStats {
+    total: number;
+    online: number;
+    new_24h: number;
+}
+
+export interface MessageStats {
+    today: number;
+    week: number;
+}
+
+export interface ModerationStats {
+    actions_today: number;
+    warnings_active: number;
+}
+
+export interface ModuleStats {
+    enabled: number;
+    total: number;
+}
+
+export interface DashboardData {
+    members: MemberStats;
+    messages: MessageStats;
+    moderation: ModerationStats;
+    modules: ModuleStats;
+    system_status: ServiceStatus[];
+    recent_activities: RecentActivity[];
+}
+
+export interface ModerationCase {
+    id: number;
+    case_id: number;
+    action_type: string;
+    user_id: string;
+    username?: string;
+    moderator_id: string;
+    reason?: string;
+    active: boolean;
+    duration?: number;
+    created_at: string;
+}
+
+export interface ModerationResponse {
+    items: ModerationCase[];
+    total: number;
+    page: number;
+    pages: number;
+}
+
+export interface Warning {
+    id: number;
+    user_id: string;
+    moderator_id: string;
+    reason: string;
+    created_at: string;
+}
+
+export interface WarningsResponse {
+    items: Warning[];
+    total: number;
+}
+
+export interface TicketItem {
+    id: number;
+    channel_id?: string;
+    user_id: string;
+    username?: string;
+    subject: string;
+    status: string;
+    messages_count: number;
+    created_at: string;
+    closed_at?: string;
+}
+
+export interface TicketsResponse {
+    items: TicketItem[];
+    counts: {
+        open: number;
+        claimed: number;
+        closed: number;
+    };
+    page: number;
+}
+
+export interface AuditFilters {
+    action?: string;
+    actor?: string;
+    from_date?: string;
+    to_date?: string;
+    page?: number;
+}
+
+export interface AuditLogItem {
+    id: number;
+    actor_id: string;
+    actor_name?: string;
+    action: string;
+    target_type?: string;
+    target_id?: string;
+    diff_json?: Record<string, unknown>;
+    created_at: string;
+}
+
+export interface AuditLogsResponse {
+    items: AuditLogItem[];
+    page: number;
+    total: number;
+}
+
+export interface AnalyticsDataPoint {
+    date: string;
+    messages?: number;
+    users?: number;
+    actions?: number;
+}
+
+export interface AnalyticsResponse {
+    metric: string;
+    from_date: string;
+    to_date: string;
+    data: AnalyticsDataPoint[];
+}
+
+export interface GuildSettings {
+    prefix: string;
+    language: string;
+    log_channel_id?: string;
+    welcome_enabled: boolean;
+    welcome_channel_id?: string;
+    welcome_message?: string;
+    dm_on_warn: boolean;
+    dm_on_mute: boolean;
+    notify_on_join: boolean;
+    notify_on_leave: boolean;
+    notify_on_ban: boolean;
+}
+

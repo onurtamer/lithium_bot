@@ -11,7 +11,7 @@ from lithium_core.database.session import get_db
 from fastapi.middleware.cors import CORSMiddleware
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from apps.api.router import auth, guilds, modules
+from apps.api.router import auth, guilds, modules, guilds_v2
 
 import structlog
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -45,6 +45,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(guilds.router)
 app.include_router(modules.router)
+app.include_router(guilds_v2.router)
 
 @app.get("/health")
 @limiter.limit("5/minute")

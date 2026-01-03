@@ -134,6 +134,49 @@ class LithiumBot(commands.Bot):
         self.bg_task = self.loop.create_task(self.redis_listener())
         self.stats_task = self.loop.create_task(self.guild_stats_updater())
 
+    async def on_message(self, message):
+        """Track message counts per guild"""
+        if message.author.bot or not message.guild:
+            return
+        
+        try:
+            import redis.asyncio as redis_async
+            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+            r = redis_async.from_url(redis_url)
+            
+            # Increment today's message counter
+            today_key = f"guild:stats:{message.guild.id}:messages:today"
+            await r.incr(today_key)
+            await r.expire(today_key, 86400)  # 24h expiry
+            
+            # Also track weekly
+            week_key = f"guild:stats:{message.guild.id}:messages:week"
+            await r.incr(week_key)
+            await r.expire(week_key, 604800)  # 7 days expiry
+            
+            await r.aclose()
+        except Exception as e:
+            logger.warning(f"Message tracking error: {e}")
+        
+        # Process commands
+        await self.process_commands(message)
+
+    async def on_member_join(self, member):
+        """Track new member joins for dashboard stats"""
+        try:
+            import redis.asyncio as redis_async
+            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+            r = redis_async.from_url(redis_url)
+            
+            # Increment 24h join counter
+            key = f"guild:stats:{member.guild.id}:joins_24h"
+            await r.incr(key)
+            await r.expire(key, 86400)  # 24h expiry
+            
+            await r.aclose()
+        except Exception as e:
+            logger.warning(f"Member join tracking error: {e}")
+
     async def guild_stats_updater(self):
         """Background task to cache guild stats to Redis for the dashboard"""
         import redis.asyncio as redis_async
@@ -153,18 +196,31 @@ class LithiumBot(commands.Bot):
                         # Count online members
                         online_count = sum(1 for m in guild.members if m.status != discord.Status.offline)
                         
+                        # Get new members in last 24h from cached join counter
+                        new_24h_key = f"guild:stats:{guild.id}:joins_24h"
+                        new_24h = await r.get(new_24h_key)
+                        new_24h = int(new_24h) if new_24h else 0
+                        
                         stats = {
                             "total": guild.member_count,
                             "online": online_count,
-                            "new_24h": 0  # Would need to track join events for this
+                            "new_24h": new_24h
                         }
                         
-                        # Cache to Redis with 5 minute expiry
+                        # Cache member stats with 5 minute expiry
                         await r.set(
                             f"guild:stats:{guild.id}:members",
                             json.dumps(stats),
                             ex=300
                         )
+                        
+                        # Set bot heartbeat (TTL 15s, refreshed every 10s)
+                        await r.set(
+                            f"bot:heartbeat:{guild.id}",
+                            str(datetime.now().timestamp()),
+                            ex=15
+                        )
+                        
                     except Exception as e:
                         logger.warning(f"Failed to update stats for guild {guild.id}: {e}")
                 
@@ -173,8 +229,8 @@ class LithiumBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Guild stats updater error: {e}")
             
-            # Update every 60 seconds
-            await asyncio.sleep(60)
+            # Update every 10 seconds for heartbeat
+            await asyncio.sleep(10)
 
     async def redis_listener(self):
         import redis.asyncio as redis_async
