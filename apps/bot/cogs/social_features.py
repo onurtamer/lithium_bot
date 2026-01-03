@@ -83,7 +83,7 @@ class SocialFeatures(commands.Cog):
                     await payload.member.add_roles(role)
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionRemoveEvent):
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         async with AsyncSessionLocal() as db:
             stmt = select(ReactionRoleMenu).where(ReactionRoleMenu.message_id == str(payload.message_id))
             menu = (await db.execute(stmt)).scalar_one_or_none()
