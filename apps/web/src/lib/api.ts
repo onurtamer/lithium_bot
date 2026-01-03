@@ -155,6 +155,8 @@ export interface User {
     username: string;
     avatar_url: string | null;
     created_at: string;
+    key_auth?: boolean;
+    guild_id?: string;
 }
 
 export interface Guild {
