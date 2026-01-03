@@ -40,7 +40,7 @@ class LithiumBot(commands.Bot):
         else:
             await interaction.response.send_message(f"⚠️ An error occurred: `{error_msg}`", ephemeral=True)
 
-
+    async def setup_hook(self):
         # Global Error handler setup
         self.tree.on_error = self.on_app_command_error
         logger.info("Setting up Lithium Bot...")
