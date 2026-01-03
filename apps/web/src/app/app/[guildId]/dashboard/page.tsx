@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { api, type GuildMetrics, type ServiceStatus, type RecentActivity } from '@/lib/api';
+import { api, type DashboardData, type ServiceStatus, type RecentActivity } from '@/lib/api';
 import { useGuildStore, useModuleStore } from '@/lib/store';
 import {
     Users,
@@ -20,6 +20,8 @@ import {
     VolumeX,
     Ban,
     Loader2,
+    Wifi,
+    WifiOff,
     type LucideIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,91 +46,119 @@ export default function DashboardPage() {
     const guildId = params.guildId as string;
     const { currentGuild } = useGuildStore();
     const { modules } = useModuleStore();
-    const [metrics, setMetrics] = useState<GuildMetrics | null>(null);
-    const [systemStatus, setSystemStatus] = useState<ServiceStatus[]>([]);
-    const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+    const [dashboard, setDashboard] = useState<DashboardData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isConnected, setIsConnected] = useState(false);
+    const eventSourceRef = useRef<EventSource | null>(null);
 
     useEffect(() => {
         loadDashboardData();
+        setupSSE();
+
+        return () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+            }
+        };
     }, [guildId]);
 
     const loadDashboardData = async () => {
         setIsLoading(true);
         try {
-            // Load all data in parallel
-            const [metricsData, statusData, activitiesData] = await Promise.all([
-                api.getMetrics(guildId).catch(() => null),
-                api.getSystemStatus(guildId).catch(() => null),
-                api.getRecentActivities(guildId, 5).catch(() => null),
-            ]);
-
-            if (metricsData) {
-                setMetrics(metricsData);
-            } else {
-                setMetrics({
-                    members: { total: 0, online: 0, new_24h: 0 },
-                    messages: { today: 0, week: 0 },
-                    moderation: { actions_today: 0, warnings_active: 0 },
-                });
+            const response = await api.getDashboard(guildId);
+            if (response.ok) {
+                setDashboard(response.data);
             }
-
-            if (statusData) {
-                setSystemStatus(statusData.services);
-            } else {
-                // Fallback static data
-                setSystemStatus([
+        } catch (error) {
+            console.error('Failed to load dashboard:', error);
+            // Fallback data
+            setDashboard({
+                members: { total: 0, online: 0, new_24h: 0 },
+                messages: { today: 0, week: 0 },
+                moderation: { actions_today: 0, warnings_active: 0 },
+                modules: { enabled: 0, total: 15 },
+                system_status: [
                     { name: 'Bot', status: 'online' },
                     { name: 'API', status: 'online' },
                     { name: 'Database', status: 'online' },
                     { name: 'Cache', status: 'online' },
-                ]);
-            }
-
-            if (activitiesData && activitiesData.items.length > 0) {
-                setRecentActivities(activitiesData.items);
-            } else {
-                // Fallback placeholder data when no activities
-                setRecentActivities([]);
-            }
-        } catch (error) {
-            console.error('Failed to load dashboard data:', error);
+                ],
+                recent_activities: []
+            });
         } finally {
             setIsLoading(false);
         }
     };
 
+    const setupSSE = () => {
+        try {
+            const es = api.createEventSource(guildId);
+            eventSourceRef.current = es;
+
+            es.onopen = () => {
+                setIsConnected(true);
+            };
+
+            es.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'stats_update' && dashboard) {
+                        setDashboard(prev => prev ? {
+                            ...prev,
+                            members: data.data.members || prev.members,
+                            messages: data.data.messages || prev.messages,
+                            system_status: prev.system_status.map(s =>
+                                s.name === 'Bot' ? { ...s, status: data.data.bot_status } : s
+                            )
+                        } : prev);
+                    }
+                } catch (e) {
+                    console.warn('SSE parse error:', e);
+                }
+            };
+
+            es.onerror = () => {
+                setIsConnected(false);
+                es.close();
+                // Retry after 5s
+                setTimeout(setupSSE, 5000);
+            };
+        } catch (e) {
+            console.warn('SSE setup failed:', e);
+        }
+    };
+
     const enabledModules = modules.filter(m => m.enabled).length;
-    const totalModules = modules.length;
+    const totalModules = modules.length || dashboard?.modules.total || 15;
 
     const statCards = [
         {
             title: 'Toplam Üye',
-            value: metrics?.members.total.toLocaleString('tr-TR') || '—',
-            subtitle: `${metrics?.members.online || 0} çevrimiçi`,
+            value: dashboard?.members.total.toLocaleString('tr-TR') || '—',
+            subtitle: `${dashboard?.members.online || 0} çevrimiçi`,
             icon: Users,
             color: 'text-blue-400',
             bgColor: 'bg-blue-400/10',
         },
         {
             title: 'Bugünkü Mesaj',
-            value: metrics?.messages.today.toLocaleString('tr-TR') || '—',
-            subtitle: `Bu hafta ${metrics?.messages.week.toLocaleString('tr-TR') || 0}`,
+            value: dashboard?.messages.today.toLocaleString('tr-TR') || '—',
+            subtitle: `Bu hafta ${dashboard?.messages.week.toLocaleString('tr-TR') || 0}`,
             icon: MessageSquare,
             color: 'text-green-400',
             bgColor: 'bg-green-400/10',
         },
         {
             title: 'Moderasyon',
-            value: metrics?.moderation.actions_today.toString() || '—',
-            subtitle: `${metrics?.moderation.warnings_active || 0} aktif uyarı`,
+            value: dashboard?.moderation.actions_today.toString() || '—',
+            subtitle: `${dashboard?.moderation.warnings_active || 0} aktif uyarı`,
             icon: Shield,
             color: 'text-orange-400',
             bgColor: 'bg-orange-400/10',
         },
         {
             title: 'Aktif Modül',
-            value: `${enabledModules}/${totalModules}`,
+            value: `${enabledModules || dashboard?.modules.enabled || 0}/${totalModules}`,
             subtitle: 'modül aktif',
             icon: Activity,
             color: 'text-purple-400',
@@ -139,13 +169,28 @@ export default function DashboardPage() {
     return (
         <div className="space-y-8 animate-fadeIn">
             {/* Welcome Header */}
-            <div>
-                <h1 className="text-2xl font-bold">
-                    Hoş Geldiniz, {currentGuild?.name || 'Sunucu'}
-                </h1>
-                <p className="text-muted-foreground mt-1">
-                    Sunucu durumunuza ve son aktivitelere buradan göz atabilirsiniz.
-                </p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">
+                        Hoş Geldiniz, {currentGuild?.name || 'Sunucu'}
+                    </h1>
+                    <p className="text-muted-foreground mt-1">
+                        Sunucu durumunuza ve son aktivitelere buradan göz atabilirsiniz.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {isConnected ? (
+                        <>
+                            <Wifi className="h-3 w-3 text-success" />
+                            <span>Canlı</span>
+                        </>
+                    ) : (
+                        <>
+                            <WifiOff className="h-3 w-3 text-muted-foreground" />
+                            <span>Bağlantı yok</span>
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* Stats Grid */}
@@ -194,7 +239,7 @@ export default function DashboardPage() {
                             />
                             <QuickActionButton
                                 href={`/app/${guildId}/settings`}
-                                icon={TrendingUp}
+                                icon={Settings}
                                 label="Ayarlar"
                             />
                         </div>
@@ -212,11 +257,11 @@ export default function DashboardPage() {
                                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                             </div>
                         ) : (
-                            systemStatus.map((service) => (
+                            dashboard?.system_status.map((service) => (
                                 <StatusItem
                                     key={service.name}
                                     label={service.name}
-                                    status={service.status}
+                                    status={service.status as 'online' | 'degraded' | 'offline'}
                                     latency={service.latency_ms}
                                 />
                             ))
@@ -244,16 +289,16 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-center py-8">
                             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
-                    ) : recentActivities.length > 0 ? (
+                    ) : dashboard?.recent_activities && dashboard.recent_activities.length > 0 ? (
                         <div className="space-y-4">
-                            {recentActivities.map((activity) => (
+                            {dashboard.recent_activities.map((activity) => (
                                 <ActivityItem
                                     key={activity.id}
                                     icon={ICON_MAP[activity.icon] || Activity}
                                     title={activity.title}
                                     description={activity.description}
                                     time={activity.time}
-                                    type={activity.type}
+                                    type={activity.severity as 'success' | 'warning' | 'info' | 'error'}
                                 />
                             ))}
                         </div>

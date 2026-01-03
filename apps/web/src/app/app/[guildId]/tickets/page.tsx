@@ -2,18 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { api, type TicketItem } from '@/lib/api';
 import {
     Ticket,
-    Plus,
-    Search,
-    Filter,
-    Loader2,
     Clock,
-    CheckCircle2,
-    XCircle,
     User,
+    Search,
+    Loader2,
     MessageSquare,
-    Settings
+    CheckCircle,
+    AlertCircle,
+    XCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,66 +20,67 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-interface TicketData {
-    id: string;
-    channel_id: string;
-    user_id: string;
-    username: string;
-    subject: string;
-    status: 'open' | 'pending' | 'closed';
-    created_at: string;
-    closed_at?: string;
-    messages_count: number;
-}
-
 export default function TicketsPage() {
     const params = useParams();
     const guildId = params.guildId as string;
     const [activeTab, setActiveTab] = useState('open');
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-
-    // Placeholder data - would come from API
-    const [tickets, setTickets] = useState<TicketData[]>([]);
+    const [tickets, setTickets] = useState<TicketItem[]>([]);
+    const [counts, setCounts] = useState({ open: 0, claimed: 0, closed: 0 });
 
     useEffect(() => {
-        setIsLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false);
-        }, 500);
+        loadTickets();
     }, [guildId, activeTab]);
 
-    const openCount = tickets.filter(t => t.status === 'open').length;
-    const pendingCount = tickets.filter(t => t.status === 'pending').length;
-    const closedCount = tickets.filter(t => t.status === 'closed').length;
+    const loadTickets = async () => {
+        setIsLoading(true);
+        try {
+            const status = activeTab === 'pending' ? 'claimed' : activeTab;
+            const response = await api.getTickets(guildId, status);
 
-    const stats = [
-        { label: 'Açık', value: openCount, icon: Ticket, color: 'text-success' },
-        { label: 'Beklemede', value: pendingCount, icon: Clock, color: 'text-warning' },
-        { label: 'Kapalı', value: closedCount, icon: CheckCircle2, color: 'text-muted-foreground' },
-    ];
+            if (response.ok) {
+                setTickets(response.data.items);
+                setCounts(response.data.counts);
+            }
+        } catch (error) {
+            console.error('Failed to load tickets:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-    const filteredTickets = tickets.filter(t => {
-        if (activeTab === 'open') return t.status === 'open';
-        if (activeTab === 'pending') return t.status === 'pending';
-        if (activeTab === 'closed') return t.status === 'closed';
-        return true;
-    }).filter(t =>
-        t.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.subject.toLowerCase().includes(searchQuery.toLowerCase())
+    const handleCloseTicket = async (ticketId: number) => {
+        try {
+            await api.updateTicket(guildId, ticketId, 'closed');
+            loadTickets();
+        } catch (error) {
+            console.error('Failed to close ticket:', error);
+        }
+    };
+
+    const filteredTickets = tickets.filter(t =>
+        !searchQuery ||
+        t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.user_id.includes(searchQuery)
     );
 
+    const stats = [
+        { label: 'Açık Ticketlar', value: counts.open, icon: AlertCircle, color: 'text-blue-400' },
+        { label: 'Beklemede', value: counts.claimed, icon: Clock, color: 'text-warning' },
+        { label: 'Kapatılmış', value: counts.closed, icon: CheckCircle, color: 'text-success' },
+    ];
+
     const getStatusBadge = (status: string) => {
-        switch (status) {
+        switch (status.toLowerCase()) {
             case 'open':
-                return <Badge className="bg-success/20 text-success">Açık</Badge>;
-            case 'pending':
+                return <Badge className="bg-blue-500/20 text-blue-400">Açık</Badge>;
+            case 'claimed':
                 return <Badge className="bg-warning/20 text-warning">Beklemede</Badge>;
             case 'closed':
                 return <Badge variant="secondary">Kapalı</Badge>;
             default:
-                return null;
+                return <Badge variant="outline">{status}</Badge>;
         }
     };
 
@@ -97,10 +97,6 @@ export default function TicketsPage() {
                         Destek taleplerini yönetin
                     </p>
                 </div>
-                <Button>
-                    <Settings className="h-4 w-4 mr-2" />
-                    Ayarlar
-                </Button>
             </div>
 
             {/* Stats */}
@@ -126,13 +122,16 @@ export default function TicketsPage() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList>
                     <TabsTrigger value="open">
-                        Açık ({openCount})
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        Açık ({counts.open})
                     </TabsTrigger>
                     <TabsTrigger value="pending">
-                        Beklemede ({pendingCount})
+                        <Clock className="h-4 w-4 mr-2" />
+                        Beklemede ({counts.claimed})
                     </TabsTrigger>
                     <TabsTrigger value="closed">
-                        Kapalı ({closedCount})
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Kapalı ({counts.closed})
                     </TabsTrigger>
                 </TabsList>
 
@@ -151,34 +150,50 @@ export default function TicketsPage() {
 
                 <div className="mt-4">
                     <Card>
-                        <CardContent className="pt-6">
+                        <CardHeader>
+                            <CardTitle>Ticketlar</CardTitle>
+                            <CardDescription>Destek talepleri listesi</CardDescription>
+                        </CardHeader>
+                        <CardContent>
                             {isLoading ? (
                                 <div className="flex items-center justify-center py-12">
                                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                 </div>
                             ) : filteredTickets.length > 0 ? (
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     {filteredTickets.map((ticket) => (
-                                        <div key={ticket.id} className="flex items-start gap-4 p-4 rounded-lg border border-border bg-card/50 hover:bg-accent/50 transition-colors cursor-pointer">
-                                            <div className="flex-shrink-0">
-                                                <User className="h-8 w-8 text-muted-foreground" />
+                                        <div key={ticket.id} className="flex items-start gap-4 p-4 rounded-lg border border-border bg-card/50">
+                                            <div className="p-2 rounded-lg bg-muted">
+                                                <Ticket className="h-5 w-5 text-primary" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
-                                                    <p className="font-medium">{ticket.username}</p>
-                                                    {getStatusBadge(ticket.status)}
+                                                    <p className="font-medium">#{ticket.id} - {ticket.subject}</p>
                                                 </div>
-                                                <p className="text-sm text-muted-foreground truncate">{ticket.subject}</p>
-                                                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                                    <span className="flex items-center gap-1">
-                                                        <MessageSquare className="h-3 w-3" />
-                                                        {ticket.messages_count} mesaj
-                                                    </span>
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        {new Date(ticket.created_at).toLocaleDateString('tr-TR')}
-                                                    </span>
+                                                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                                    <User className="h-3 w-3" />
+                                                    <span>{ticket.user_id}</span>
+                                                    <span className="mx-1">•</span>
+                                                    <MessageSquare className="h-3 w-3" />
+                                                    <span>{ticket.messages_count} mesaj</span>
                                                 </div>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2">
+                                                {getStatusBadge(ticket.status)}
+                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {new Date(ticket.created_at).toLocaleDateString('tr-TR')}
+                                                </span>
+                                                {ticket.status !== 'closed' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleCloseTicket(ticket.id)}
+                                                    >
+                                                        <XCircle className="h-3 w-3 mr-1" />
+                                                        Kapat
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -187,7 +202,7 @@ export default function TicketsPage() {
                                 <div className="text-center py-12 text-muted-foreground">
                                     <Ticket className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                     <h3 className="text-lg font-semibold mb-2">Ticket Bulunamadı</h3>
-                                    <p>Bu kategoride henüz ticket bulunmuyor.</p>
+                                    <p>Bu kategoride ticket bulunmuyor.</p>
                                 </div>
                             )}
                         </CardContent>

@@ -405,6 +405,7 @@ export interface RecentActivity {
     description: string;
     time: string;
     type: 'success' | 'warning' | 'info' | 'error';
+    severity: 'success' | 'warning' | 'info' | 'error'; // Alias for type in v2 API
     created_at: string;
 }
 
