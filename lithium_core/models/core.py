@@ -30,3 +30,15 @@ class OAuthSession(Base, TimestampMixin):
     expires_at: Mapped[str] = mapped_column(String) # Storing as ISO string or timestamp
     
     user: Mapped["User"] = relationship()
+
+
+class AccessKey(Base, TimestampMixin):
+    """Key-based authentication for quick dashboard access without Discord OAuth"""
+    __tablename__ = "access_keys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(30), unique=True, index=True)
+    guild_discord_id: Mapped[str] = mapped_column(String, index=True)
+    created_by_discord_id: Mapped[str] = mapped_column(String)
+    expires_at: Mapped[str] = mapped_column(String, nullable=True)  # ISO datetime string
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)

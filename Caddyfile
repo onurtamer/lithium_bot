@@ -7,13 +7,13 @@
         reverse_proxy api:8000
     }
 
-    # API Documentation (Swagger UI)
-    handle_path /docs* {
+    # API Documentation (Swagger UI) - Keep path
+    handle /docs* {
         reverse_proxy api:8000
     }
     
-    # OpenAPI JSON
-    handle_path /openapi.json {
+    # OpenAPI JSON - Keep path
+    handle /openapi.json {
         reverse_proxy api:8000
     }
 

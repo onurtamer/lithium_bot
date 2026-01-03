@@ -1,11 +1,14 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import os
 import asyncio
 import logging
 import sys
+import os
 import traceback
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Add project root to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -101,6 +104,7 @@ class LithiumBot(commands.Bot):
             'apps.bot.cogs.governance.pipeline',    # Event pipeline
             'apps.bot.cogs.governance.safe_mode',   # Safe mode & lockdown
             'apps.bot.cogs.governance.tickets_v2',  # Report, complaint, request, appeal
+            'apps.bot.cogs.access_key',             # Key-based authentication
         ]
         
         for extension in extensions:
@@ -221,6 +225,8 @@ async def main():
 
 if __name__ == "__main__":
     try:
+        if sys.platform == 'win32':
+             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         asyncio.run(main())
     except KeyboardInterrupt:
         pass

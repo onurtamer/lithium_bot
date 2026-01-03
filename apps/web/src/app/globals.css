@@ -4,8 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================
-   LITHIUM CONTROL CENTER - PREMIUM DESIGN SYSTEM
-   Discord Blurple Theme with Dark Mode Focus
+   LITHIUM CONTROL CENTER - PREMIUM NEON THEME
+   Atomic Green / Sci-Fi Cyberpunk Design
    ============================================ */
 
 @theme inline {
@@ -13,7 +13,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
+
   /* Sidebar */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -23,14 +23,14 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  
+
   /* Charts */
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
-  
+
   /* Core */
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -48,7 +48,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  
+
   /* Radius */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -57,279 +57,542 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  
-  /* Custom Lithium Colors */
-  --color-discord-blurple: var(--discord-blurple);
-  --color-discord-green: var(--discord-green);
-  --color-discord-yellow: var(--discord-yellow);
-  --color-discord-red: var(--discord-red);
+
+  /* Lithium Neon Colors */
+  --color-lithium: var(--lithium);
+  --color-lithium-glow: var(--lithium-glow);
+  --color-lithium-dark: var(--lithium-dark);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
 }
 
-/* Light Theme (secondary) */
-:root {
+/* Dark Theme (Primary - Lithium Neon) */
+.dark {
   --radius: 0.75rem;
-  --background: #ffffff;
-  --foreground: #0a0a0f;
-  --card: #f8f9fa;
-  --card-foreground: #0a0a0f;
-  --popover: #ffffff;
-  --popover-foreground: #0a0a0f;
-  --primary: #5865F2;
-  --primary-foreground: #ffffff;
-  --secondary: #ebeef1;
-  --secondary-foreground: #1a1a24;
-  --muted: #f1f3f5;
-  --muted-foreground: #6c757d;
-  --accent: #e8eafc;
-  --accent-foreground: #5865F2;
-  --destructive: #f04747;
-  --border: #dee2e6;
-  --input: #e9ecef;
-  --ring: #5865F2;
-  
-  /* Discord Brand Colors */
-  --discord-blurple: #5865F2;
-  --discord-green: #57F287;
-  --discord-yellow: #FEE75C;
-  --discord-red: #ED4245;
-  --success: #43b581;
-  --warning: #faa61a;
-  --info: #5865F2;
-  
-  /* Charts */
-  --chart-1: #5865F2;
-  --chart-2: #57F287;
-  --chart-3: #FEE75C;
-  --chart-4: #EB459E;
-  --chart-5: #ED4245;
-  
+
+  /* Deep dark background with slight green tint */
+  --background: #050807;
+  --foreground: #e8f5e9;
+
+  /* Cards with glassmorphism base */
+  --card: rgba(16, 24, 20, 0.8);
+  --card-foreground: #e8f5e9;
+
+  --popover: #0d1410;
+  --popover-foreground: #e8f5e9;
+
+  /* Lithium Neon Green - Primary */
+  --primary: #39FF14;
+  --primary-foreground: #050807;
+
+  --secondary: #0d1a14;
+  --secondary-foreground: #e8f5e9;
+
+  --muted: #121f18;
+  --muted-foreground: #7cb99a;
+
+  --accent: #0f2a1f;
+  --accent-foreground: #39FF14;
+
+  --destructive: #ff4757;
+
+  --border: rgba(57, 255, 20, 0.15);
+  --input: rgba(57, 255, 20, 0.1);
+  --ring: #39FF14;
+
+  /* Lithium Brand Colors */
+  --lithium: #39FF14;
+  --lithium-glow: #4ADE80;
+  --lithium-dark: #166534;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --info: #06b6d4;
+
+  /* Charts - Neon palette */
+  --chart-1: #39FF14;
+  --chart-2: #4ADE80;
+  --chart-3: #06b6d4;
+  --chart-4: #f59e0b;
+  --chart-5: #ff4757;
+
   /* Sidebar */
-  --sidebar: #f8f9fa;
-  --sidebar-foreground: #0a0a0f;
-  --sidebar-primary: #5865F2;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ebeef1;
-  --sidebar-accent-foreground: #0a0a0f;
-  --sidebar-border: #dee2e6;
-  --sidebar-ring: #5865F2;
+  --sidebar: #080d0a;
+  --sidebar-foreground: #e8f5e9;
+  --sidebar-primary: #39FF14;
+  --sidebar-primary-foreground: #050807;
+  --sidebar-accent: #0f2a1f;
+  --sidebar-accent-foreground: #e8f5e9;
+  --sidebar-border: rgba(57, 255, 20, 0.1);
+  --sidebar-ring: #39FF14;
 }
 
-/* Dark Theme (primary - Discord style) */
-.dark {
-  --background: #0a0a0f;
-  --foreground: #f8f9fa;
-  --card: #12121a;
-  --card-foreground: #f8f9fa;
-  --popover: #1a1a24;
-  --popover-foreground: #f8f9fa;
-  --primary: #5865F2;
-  --primary-foreground: #ffffff;
-  --secondary: #1a1a24;
-  --secondary-foreground: #f8f9fa;
-  --muted: #22222e;
-  --muted-foreground: #a0a3a8;
-  --accent: #2a2a3a;
-  --accent-foreground: #f8f9fa;
-  --destructive: #f04747;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #5865F2;
-  
-  /* Discord Brand Colors */
-  --discord-blurple: #5865F2;
-  --discord-green: #57F287;
-  --discord-yellow: #FEE75C;
-  --discord-red: #ED4245;
-  --success: #43b581;
-  --warning: #faa61a;
-  --info: #5865F2;
-  
-  /* Charts */
-  --chart-1: #5865F2;
-  --chart-2: #57F287;
-  --chart-3: #FEE75C;
-  --chart-4: #EB459E;
-  --chart-5: #ED4245;
-  
+/* Base Theme (Dark by default) */
+:root {
+  --radius: 0.75rem;
+
+  /* Deep dark background with slight green tint */
+  --background: #050807;
+  --foreground: #e8f5e9;
+
+  /* Cards with glassmorphism base */
+  --card: rgba(16, 24, 20, 0.8);
+  --card-foreground: #e8f5e9;
+
+  --popover: #0d1410;
+  --popover-foreground: #e8f5e9;
+
+  /* Lithium Neon Green - Primary */
+  --primary: #39FF14;
+  --primary-foreground: #050807;
+
+  --secondary: #0d1a14;
+  --secondary-foreground: #e8f5e9;
+
+  --muted: #121f18;
+  --muted-foreground: #7cb99a;
+
+  --accent: #0f2a1f;
+  --accent-foreground: #39FF14;
+
+  --destructive: #ff4757;
+
+  --border: rgba(57, 255, 20, 0.15);
+  --input: rgba(57, 255, 20, 0.1);
+  --ring: #39FF14;
+
+  /* Lithium Brand Colors */
+  --lithium: #39FF14;
+  --lithium-glow: #4ADE80;
+  --lithium-dark: #166534;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --info: #06b6d4;
+
+  /* Charts - Neon palette */
+  --chart-1: #39FF14;
+  --chart-2: #4ADE80;
+  --chart-3: #06b6d4;
+  --chart-4: #f59e0b;
+  --chart-5: #ff4757;
+
   /* Sidebar */
-  --sidebar: #12121a;
-  --sidebar-foreground: #f8f9fa;
-  --sidebar-primary: #5865F2;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a1a24;
-  --sidebar-accent-foreground: #f8f9fa;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #5865F2;
+  --sidebar: #080d0a;
+  --sidebar-foreground: #e8f5e9;
+  --sidebar-primary: #39FF14;
+  --sidebar-primary-foreground: #050807;
+  --sidebar-accent: #0f2a1f;
+  --sidebar-accent-foreground: #e8f5e9;
+  --sidebar-border: rgba(57, 255, 20, 0.1);
+  --sidebar-ring: #39FF14;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  
-  /* Smooth scrolling */
+
   html {
     scroll-behavior: smooth;
   }
-  
-  /* Custom scrollbar for dark theme */
+
+  /* Neon scrollbar */
   .dark ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
-  
+
   .dark ::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(5, 8, 7, 0.5);
   }
-  
+
   .dark ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
+    background: rgba(57, 255, 20, 0.3);
+    border-radius: 3px;
   }
-  
+
   .dark ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(57, 255, 20, 0.5);
   }
 }
 
 @layer utilities {
-  /* Glass effect */
-  .glass {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  /* ==========================================
+     LITHIUM GLOW EFFECTS
+     ========================================== */
+
+  .glow-lithium {
+    box-shadow:
+      0 0 5px rgba(57, 255, 20, 0.3),
+      0 0 20px rgba(57, 255, 20, 0.2),
+      0 0 40px rgba(57, 255, 20, 0.1);
   }
-  
-  /* Gradient text */
-  .gradient-text {
-    background: linear-gradient(135deg, #5865F2 0%, #EB459E 100%);
+
+  .glow-lithium-strong {
+    box-shadow:
+      0 0 10px rgba(57, 255, 20, 0.5),
+      0 0 30px rgba(57, 255, 20, 0.3),
+      0 0 60px rgba(57, 255, 20, 0.2);
+  }
+
+  .glow-lithium-text {
+    text-shadow:
+      0 0 10px rgba(57, 255, 20, 0.8),
+      0 0 20px rgba(57, 255, 20, 0.5),
+      0 0 40px rgba(57, 255, 20, 0.3);
+  }
+
+  .glow-success {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  }
+
+  .glow-warning {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  }
+
+  .glow-danger {
+    box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+  }
+
+  /* ==========================================
+     GRADIENT UTILITIES
+     ========================================== */
+
+  .gradient-lithium {
+    background: linear-gradient(135deg, #39FF14 0%, #4ADE80 50%, #22c55e 100%);
+  }
+
+  .gradient-lithium-dark {
+    background: linear-gradient(135deg, #166534 0%, #15803d 50%, #16a34a 100%);
+  }
+
+  .gradient-text-lithium {
+    background: linear-gradient(135deg, #39FF14 0%, #4ADE80 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  
-  /* Discord Blurple gradient */
-  .gradient-blurple {
-    background: linear-gradient(135deg, #5865F2 0%, #7289da 100%);
+
+  .gradient-radial-lithium {
+    background: radial-gradient(ellipse at center, rgba(57, 255, 20, 0.15) 0%, transparent 70%);
   }
-  
-  /* Glow effects */
-  .glow-primary {
-    box-shadow: 0 0 20px rgba(88, 101, 242, 0.3);
+
+  /* ==========================================
+     GLASSMORPHISM
+     ========================================== */
+
+  .glass {
+    background: rgba(16, 24, 20, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(57, 255, 20, 0.1);
   }
-  
-  .glow-success {
-    box-shadow: 0 0 20px rgba(67, 181, 129, 0.3);
+
+  .glass-strong {
+    background: rgba(16, 24, 20, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(57, 255, 20, 0.2);
   }
-  
-  .glow-warning {
-    box-shadow: 0 0 20px rgba(250, 166, 26, 0.3);
+
+  .glass-card {
+    background: rgba(13, 20, 16, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(57, 255, 20, 0.1);
+    transition: all 0.3s ease;
   }
-  
-  .glow-danger {
-    box-shadow: 0 0 20px rgba(240, 71, 71, 0.3);
+
+  .glass-card:hover {
+    border-color: rgba(57, 255, 20, 0.3);
+    box-shadow: 0 0 30px rgba(57, 255, 20, 0.1);
   }
-  
-  /* Animated gradient border */
-  .animate-gradient-border {
-    background: linear-gradient(
-      90deg,
-      #5865F2,
-      #EB459E,
-      #57F287,
-      #FEE75C,
-      #5865F2
-    );
-    background-size: 400% 400%;
-    animation: gradient-shift 8s ease infinite;
+
+  /* ==========================================
+     ATOMIC ORBIT ANIMATION
+     ========================================== */
+
+  @keyframes orbit {
+    from {
+      transform: rotate(0deg) translateX(60px) rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg) translateX(60px) rotate(-360deg);
+    }
   }
-  
-  @keyframes gradient-shift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+
+  @keyframes orbit-reverse {
+    from {
+      transform: rotate(0deg) translateX(50px) rotate(0deg);
+    }
+
+    to {
+      transform: rotate(-360deg) translateX(50px) rotate(360deg);
+    }
   }
-  
-  /* Status indicators */
+
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 5px rgba(57, 255, 20, 0.5), 0 0 20px rgba(57, 255, 20, 0.3);
+      opacity: 1;
+    }
+
+    50% {
+      box-shadow: 0 0 15px rgba(57, 255, 20, 0.8), 0 0 40px rgba(57, 255, 20, 0.5);
+      opacity: 0.8;
+    }
+  }
+
+  .animate-orbit {
+    animation: orbit 8s linear infinite;
+  }
+
+  .animate-orbit-reverse {
+    animation: orbit-reverse 6s linear infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* ==========================================
+     PARTICLE EFFECTS
+     ========================================== */
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0) translateX(0);
+    }
+
+    25% {
+      transform: translateY(-20px) translateX(10px);
+    }
+
+    50% {
+      transform: translateY(-10px) translateX(-10px);
+    }
+
+    75% {
+      transform: translateY(-30px) translateX(5px);
+    }
+  }
+
+  @keyframes float-slow {
+
+    0%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.3;
+    }
+
+    50% {
+      transform: translateY(-40px);
+      opacity: 0.8;
+    }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-float-slow {
+    animation: float-slow 8s ease-in-out infinite;
+  }
+
+  /* ==========================================
+     CARD EFFECTS
+     ========================================== */
+
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(57, 255, 20, 0.1);
+  }
+
+  .module-card {
+    @apply relative overflow-hidden rounded-xl border bg-card/50 backdrop-blur p-6 transition-all duration-300;
+    border-color: rgba(57, 255, 20, 0.1);
+  }
+
+  .module-card:hover {
+    border-color: rgba(57, 255, 20, 0.3);
+    box-shadow: 0 0 30px rgba(57, 255, 20, 0.15);
+  }
+
+  .module-card.enabled {
+    border-left: 3px solid #22c55e;
+  }
+
+  .module-card.disabled {
+    opacity: 0.5;
+  }
+
+  /* ==========================================
+     BUTTON EFFECTS
+     ========================================== */
+
+  .btn-lithium {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, #39FF14 0%, #22c55e 100%);
+    color: #050807;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .btn-lithium:hover {
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.5), 0 0 40px rgba(57, 255, 20, 0.3);
+    transform: translateY(-2px);
+  }
+
+  .btn-lithium::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .btn-lithium:hover::before {
+    left: 100%;
+  }
+
+  /* ==========================================
+     NEON BORDER ANIMATION
+     ========================================== */
+
+  @keyframes neon-border {
+
+    0%,
+    100% {
+      border-color: rgba(57, 255, 20, 0.3);
+      box-shadow: 0 0 5px rgba(57, 255, 20, 0.2);
+    }
+
+    50% {
+      border-color: rgba(57, 255, 20, 0.6);
+      box-shadow: 0 0 20px rgba(57, 255, 20, 0.4);
+    }
+  }
+
+  .animate-neon-border {
+    animation: neon-border 3s ease-in-out infinite;
+  }
+
+  /* ==========================================
+     STATUS INDICATORS
+     ========================================== */
+
   .status-online {
-    @apply bg-discord-green;
+    @apply bg-success;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
   }
-  
+
   .status-idle {
-    @apply bg-discord-yellow;
+    @apply bg-warning;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
   }
-  
+
   .status-dnd {
-    @apply bg-discord-red;
+    @apply bg-destructive;
+    box-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
   }
-  
+
   .status-offline {
     @apply bg-muted-foreground;
   }
-  
-  /* Card hover effect */
-  .card-hover {
-    @apply transition-all duration-200 hover:scale-[1.02] hover:shadow-lg;
-  }
-  
-  /* Module card specific */
-  .module-card {
-    @apply relative overflow-hidden rounded-xl border bg-card p-6 transition-all duration-200;
-  }
-  
-  .module-card:hover {
-    @apply border-primary/50 shadow-lg;
-  }
-  
-  .module-card.enabled {
-    @apply border-l-4 border-l-success;
-  }
-  
-  .module-card.disabled {
-    @apply opacity-60;
-  }
-}
 
-/* Animation for page transitions */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+  /* ==========================================
+     LOADING & ANIMATIONS
+     ========================================== */
 
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
-}
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
 
-/* Skeleton loading animation */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  100% {
-    background-position: 200% 0;
-  }
-}
 
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--muted) 25%,
-    var(--muted-foreground) 50%,
-    var(--muted) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .animate-slideIn {
+    animation: slideIn 0.5s ease-out;
+  }
+
+  /* Skeleton with neon shimmer */
+  @keyframes shimmer-neon {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg,
+        var(--muted) 25%,
+        rgba(57, 255, 20, 0.1) 50%,
+        var(--muted) 75%);
+    background-size: 200% 100%;
+    animation: shimmer-neon 2s infinite;
+  }
+
+  /* ==========================================
+     INPUT FOCUS STATES
+     ========================================== */
+
+  .input-lithium:focus {
+    border-color: rgba(57, 255, 20, 0.5);
+    box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.1), 0 0 20px rgba(57, 255, 20, 0.1);
+    outline: none;
+  }
+
+  /* ==========================================
+     BACKGROUND PATTERNS
+     ========================================== */
+
+  .bg-grid-lithium {
+    background-image:
+      linear-gradient(rgba(57, 255, 20, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57, 255, 20, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  .bg-dots-lithium {
+    background-image: radial-gradient(rgba(57, 255, 20, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
 }

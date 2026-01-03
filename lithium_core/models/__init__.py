@@ -1,5 +1,5 @@
 from .base import Base
-from .core import User, Guild, OAuthSession
+from .core import User, Guild, OAuthSession, AccessKey
 from .moderation import ModerationCase, Warning
 from .automod import AutoModRule
 from .tickets import Ticket, TicketMessage

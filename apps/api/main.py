@@ -1,11 +1,14 @@
+import os
+import sys
+from dotenv import load_dotenv
+
+# Load env vars before anything else
+load_dotenv()
+
 from fastapi import FastAPI, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from lithium_core.database.session import get_db
 from fastapi.middleware.cors import CORSMiddleware
-import os
-import sys
-
-# Add project root to path to find lithium_core
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from apps.api.router import auth, guilds, modules
