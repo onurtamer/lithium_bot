@@ -40,7 +40,7 @@ class LithiumBot(commands.Bot):
         else:
             await interaction.response.send_message(f"⚠️ An error occurred: `{error_msg}`", ephemeral=True)
 
-    async def setup_hook(self):
+
         # Global Error handler setup
         self.tree.on_error = self.on_app_command_error
         logger.info("Setting up Lithium Bot...")
@@ -105,6 +105,7 @@ class LithiumBot(commands.Bot):
             'apps.bot.cogs.governance.safe_mode',   # Safe mode & lockdown
             'apps.bot.cogs.governance.tickets_v2',  # Report, complaint, request, appeal
             'apps.bot.cogs.access_key',             # Key-based authentication
+            'apps.bot.cogs.admin',                  # Admin tools (!sync)
         ]
         
         for extension in extensions:
