@@ -143,7 +143,7 @@ class AdvancedAutoMod(commands.Cog):
         
         # Guild config kontrolü
         async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.id == str(message.guild.id))
+            stmt = select(Guild).where(Guild.discord_id == str(message.guild.id))
             guild = (await db.execute(stmt)).scalar_one_or_none()
             if not guild or not guild.automod_enabled:
                 return
@@ -244,7 +244,7 @@ class AdvancedAutoMod(commands.Cog):
             return
 
         async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.id == str(member.guild.id))
+            stmt = select(Guild).where(Guild.discord_id == str(member.guild.id))
             guild_config = (await db.execute(stmt)).scalar_one_or_none()
             if not guild_config or not guild_config.automod_enabled:
                 return

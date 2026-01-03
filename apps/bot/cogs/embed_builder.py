@@ -14,7 +14,7 @@ class EmbedBuilder(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.id == str(member.guild.id))
+            stmt = select(Guild).where(Guild.discord_id == str(member.guild.id))
             guild_config = (await db.execute(stmt)).scalar_one_or_none()
             
             if not guild_config or not guild_config.welcome_enabled:

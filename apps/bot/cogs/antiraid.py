@@ -16,7 +16,7 @@ class AntiRaid(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.id == str(member.guild.id))
+            stmt = select(Guild).where(Guild.discord_id == str(member.guild.id))
             guild = (await db.execute(stmt)).scalar_one_or_none()
             
             if not guild or not guild.quarantine_enabled:

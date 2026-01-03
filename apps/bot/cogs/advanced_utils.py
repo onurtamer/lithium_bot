@@ -29,7 +29,7 @@ class AdvancedUtils(commands.Cog):
             return
 
         async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.id == str(message.guild.id))
+            stmt = select(Guild).where(Guild.discord_id == str(message.guild.id))
             guild_config = (await db.execute(stmt)).scalar_one_or_none()
             if not guild_config:
                 return
@@ -83,7 +83,7 @@ class AdvancedUtils(commands.Cog):
             return
 
         async with AsyncSessionLocal() as db:
-            guild_stmt = select(Guild).where(Guild.id == str(payload.guild_id))
+            guild_stmt = select(Guild).where(Guild.discord_id == str(payload.guild_id))
             guild_config = (await db.execute(guild_stmt)).scalar_one_or_none()
             if not guild_config or not guild_config.starboard_enabled:
                 return

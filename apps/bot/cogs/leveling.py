@@ -23,7 +23,7 @@ class Leveling(commands.Cog):
             return
 
         async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.id == str(message.guild.id))
+            stmt = select(Guild).where(Guild.discord_id == str(message.guild.id))
             guild_config = (await db.execute(stmt)).scalar_one_or_none()
             if not guild_config or not guild_config.leveling_enabled:
                 return

@@ -36,7 +36,7 @@ class AuditLogging(commands.Cog):
     async def is_logging_enabled(self, guild_id: int) -> bool:
         """Loglama aktif mi kontrol et"""
         async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.id == str(guild_id))
+            stmt = select(Guild).where(Guild.discord_id == str(guild_id))
             guild = (await db.execute(stmt)).scalar_one_or_none()
             return guild.logs_enabled if guild else False
 

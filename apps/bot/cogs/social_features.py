@@ -45,7 +45,7 @@ class SocialFeatures(commands.Cog):
 
         # Custom Commands
         async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.id == str(message.guild.id))
+            stmt = select(Guild).where(Guild.discord_id == str(message.guild.id))
             guild = (await db.execute(stmt)).scalar_one_or_none()
             if not guild or not guild.custom_commands_enabled:
                 return
