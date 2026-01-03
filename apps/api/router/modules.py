@@ -482,14 +482,101 @@ async def test_module(
 
 @router.get("/metrics", response_model=GuildMetrics)
 async def get_guild_metrics(guild_id: str, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
-    """Get guild statistics and metrics"""
-    # This would normally query actual data
-    # For now, return placeholder data that can be expanded later
+    """Get guild statistics and metrics from database"""
+    from datetime import timedelta
+    
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    day_ago = now - timedelta(hours=24)
+    
+    members_data = {"total": 0, "online": 0, "new_24h": 0}
+    messages_data = {"today": 0, "week": 0}
+    moderation_data = {"actions_today": 0, "warnings_active": 0}
+    leveling_data = {"active_users": 0, "xp_today": 0}
+    
+    try:
+        # Get member stats from Redis cache (set by bot)
+        r = await get_redis()
+        cached_members = await r.get(f"guild:stats:{guild_id}:members")
+        if cached_members:
+            import json as json_lib
+            members_data = json_lib.loads(cached_members)
+        await r.aclose()
+    except Exception as e:
+        logger.warning(f"Failed to get cached member stats: {e}")
+    
+    try:
+        # Get moderation actions today from moderation_cases table
+        result = await db.execute(
+            text("""
+                SELECT COUNT(*) FROM moderation_cases 
+                WHERE guild_id = :gid AND created_at >= :today
+            """),
+            {"gid": guild_id, "today": today_start}
+        )
+        row = result.fetchone()
+        moderation_data["actions_today"] = row[0] if row else 0
+        
+        # Get active warnings count from warnings table
+        result = await db.execute(
+            text("""
+                SELECT COUNT(*) FROM warnings 
+                WHERE guild_id = :gid
+            """),
+            {"gid": guild_id}
+        )
+        row = result.fetchone()
+        moderation_data["warnings_active"] = row[0] if row else 0
+        
+    except Exception as e:
+        logger.warning(f"Failed to query moderation stats: {e}")
+    
+    try:
+        # Get message stats from audit_logs (message events)
+        result = await db.execute(
+            text("""
+                SELECT COUNT(*) FROM audit_logs 
+                WHERE guild_id = :gid AND created_at >= :today
+            """),
+            {"gid": guild_id, "today": today_start}
+        )
+        row = result.fetchone()
+        messages_data["today"] = row[0] if row else 0
+        
+        result = await db.execute(
+            text("""
+                SELECT COUNT(*) FROM audit_logs 
+                WHERE guild_id = :gid AND created_at >= :week
+            """),
+            {"gid": guild_id, "week": week_start}
+        )
+        row = result.fetchone()
+        messages_data["week"] = row[0] if row else 0
+        
+    except Exception as e:
+        logger.warning(f"Failed to query message stats: {e}")
+    
+    try:
+        # Get leveling stats from user_levels table if exists
+        result = await db.execute(
+            text("""
+                SELECT COUNT(*) FROM user_levels 
+                WHERE guild_id = :gid
+            """),
+            {"gid": guild_id}
+        )
+        row = result.fetchone()
+        leveling_data["active_users"] = row[0] if row else 0
+    except Exception as e:
+        # Table might not exist
+        pass
+    
     return GuildMetrics(
-        members={"total": 0, "online": 0, "new_24h": 0},
-        messages={"today": 0, "week": 0},
-        moderation={"actions_today": 0, "warnings_active": 0},
-        leveling={"active_users": 0, "xp_today": 0}
+        members=members_data,
+        messages=messages_data,
+        moderation=moderation_data,
+        leveling=leveling_data
     )
 
 @router.get("/audit-logs")
@@ -593,12 +680,12 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
     """Get recent bot and panel activities for the guild"""
     activities = []
     
-    # Try to fetch from bot_audit_events table
+    # Try to fetch from audit_logs table (populated by bot's AuditLogging cog)
     try:
         result = await db.execute(
             text("""
-                SELECT id, event_type, payload_json, created_at 
-                FROM bot_audit_events 
+                SELECT id, user_id, action, target, changes, created_at 
+                FROM audit_logs 
                 WHERE guild_id = :gid 
                 ORDER BY created_at DESC 
                 LIMIT :limit
@@ -608,22 +695,22 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
         rows = result.fetchall()
         
         for row in rows:
-            event_id, event_type, payload, created_at = row
+            log_id, user_id, action, target, changes, created_at = row
             
-            # Map event types to icons and display info
-            event_map = {
-                "automod_trigger": ("Shield", "AutoMod tetiklendi", "warning"),
-                "member_join": ("Users", "Yeni üye katıldı", "info"),
-                "member_leave": ("Users", "Üye ayrıldı", "info"),
+            # Map action types to icons and display info
+            action_map = {
                 "message_delete": ("MessageSquare", "Mesaj silindi", "warning"),
-                "module_update": ("CheckCircle2", "Modül güncellendi", "success"),
-                "config_change": ("Settings", "Ayarlar değiştirildi", "info"),
-                "warning_issued": ("AlertTriangle", "Uyarı verildi", "warning"),
-                "mute_issued": ("VolumeX", "Susturma uygulandı", "warning"),
-                "ban_issued": ("Ban", "Yasaklama uygulandı", "error"),
+                "message_edit": ("MessageSquare", "Mesaj düzenlendi", "info"),
+                "member_update": ("Users", "Üye güncellendi", "info"),
+                "member_ban": ("Ban", "Üye yasaklandı", "error"),
+                "member_unban": ("CheckCircle2", "Yasak kaldırıldı", "success"),
+                "role_add": ("Shield", "Rol eklendi", "info"),
+                "role_remove": ("Shield", "Rol kaldırıldı", "warning"),
+                "voice_join": ("Activity", "Ses kanalına katıldı", "info"),
+                "voice_leave": ("Activity", "Ses kanalından ayrıldı", "info"),
             }
             
-            icon, title, activity_type = event_map.get(event_type, ("Activity", event_type, "info"))
+            icon, title, activity_type = action_map.get(action, ("Activity", action, "info"))
             
             # Calculate relative time
             if created_at:
@@ -639,15 +726,16 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
             else:
                 time_str = "Bilinmiyor"
             
-            # Get description from payload
-            description = ""
-            if payload:
-                if isinstance(payload, str):
-                    payload = json.loads(payload)
-                description = payload.get("description", payload.get("message", ""))
+            # Build description
+            description = f"Hedef: {target}" if target else ""
+            if changes:
+                if isinstance(changes, str):
+                    changes = json.loads(changes)
+                if isinstance(changes, dict) and changes.get("description"):
+                    description = changes.get("description", "")[:100]
             
             activities.append(RecentActivity(
-                id=event_id,
+                id=log_id,
                 icon=icon,
                 title=title,
                 description=description[:100] if description else "",
@@ -656,8 +744,60 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
                 created_at=created_at.isoformat() if created_at else ""
             ))
     except Exception as e:
-        logger.error(f"Failed to fetch recent activities: {e}")
-        # Return empty list on error - frontend will show placeholder
+        logger.warning(f"Failed to fetch from audit_logs: {e}")
+    
+    # If no audit logs, try moderation_cases as fallback
+    if not activities:
+        try:
+            result = await db.execute(
+                text("""
+                    SELECT id, action_type, user_id, reason, created_at 
+                    FROM moderation_cases 
+                    WHERE guild_id = :gid 
+                    ORDER BY created_at DESC 
+                    LIMIT :limit
+                """),
+                {"gid": guild_id, "limit": limit}
+            )
+            rows = result.fetchall()
+            
+            for row in rows:
+                case_id, action_type, user_id, reason, created_at = row
+                
+                action_map = {
+                    "WARN": ("AlertTriangle", "Uyarı verildi", "warning"),
+                    "MUTE": ("VolumeX", "Susturma uygulandı", "warning"),
+                    "KICK": ("Users", "Sunucudan atıldı", "warning"),
+                    "BAN": ("Ban", "Yasaklama uygulandı", "error"),
+                    "KARA": ("Shield", "Kara listeye eklendi", "error"),
+                }
+                
+                icon, title, activity_type = action_map.get(action_type, ("Activity", action_type, "info"))
+                
+                if created_at:
+                    delta = datetime.utcnow() - created_at
+                    if delta.total_seconds() < 60:
+                        time_str = "Az önce"
+                    elif delta.total_seconds() < 3600:
+                        time_str = f"{int(delta.total_seconds() / 60)} dakika önce"
+                    elif delta.total_seconds() < 86400:
+                        time_str = f"{int(delta.total_seconds() / 3600)} saat önce"
+                    else:
+                        time_str = f"{int(delta.total_seconds() / 86400)} gün önce"
+                else:
+                    time_str = "Bilinmiyor"
+                
+                activities.append(RecentActivity(
+                    id=case_id,
+                    icon=icon,
+                    title=title,
+                    description=reason[:100] if reason else "",
+                    time=time_str,
+                    type=activity_type,
+                    created_at=created_at.isoformat() if created_at else ""
+                ))
+        except Exception as e:
+            logger.warning(f"Failed to fetch from moderation_cases: {e}")
     
     return RecentActivitiesResponse(items=activities, total=len(activities))
 

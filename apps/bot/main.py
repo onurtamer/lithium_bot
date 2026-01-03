@@ -132,6 +132,49 @@ class LithiumBot(commands.Bot):
         
         logger.info("------")
         self.bg_task = self.loop.create_task(self.redis_listener())
+        self.stats_task = self.loop.create_task(self.guild_stats_updater())
+
+    async def guild_stats_updater(self):
+        """Background task to cache guild stats to Redis for the dashboard"""
+        import redis.asyncio as redis_async
+        import json
+        
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        
+        await self.wait_until_ready()
+        logger.info("Guild stats updater started.")
+        
+        while not self.is_closed():
+            try:
+                r = redis_async.from_url(redis_url)
+                
+                for guild in self.guilds:
+                    try:
+                        # Count online members
+                        online_count = sum(1 for m in guild.members if m.status != discord.Status.offline)
+                        
+                        stats = {
+                            "total": guild.member_count,
+                            "online": online_count,
+                            "new_24h": 0  # Would need to track join events for this
+                        }
+                        
+                        # Cache to Redis with 5 minute expiry
+                        await r.set(
+                            f"guild:stats:{guild.id}:members",
+                            json.dumps(stats),
+                            ex=300
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to update stats for guild {guild.id}: {e}")
+                
+                await r.aclose()
+                
+            except Exception as e:
+                logger.error(f"Guild stats updater error: {e}")
+            
+            # Update every 60 seconds
+            await asyncio.sleep(60)
 
     async def redis_listener(self):
         import redis.asyncio as redis_async
