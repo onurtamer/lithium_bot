@@ -208,5 +208,9 @@ async def get_me_route(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie("access_token")
-    return {"message": "Logged out"}
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        samesite="lax",
+    )
+    return {"success": True, "message": "Logged out"}

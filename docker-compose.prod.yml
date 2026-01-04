@@ -39,8 +39,10 @@ services:
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
+      DISCORD_BOT_TOKEN: ${DISCORD_TOKEN}
       JWT_SECRET: ${JWT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
       APP_ENV: production
     deploy:
       resources:
@@ -65,10 +67,12 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-https://lithiumbot.xyz/api}
+        NEXT_PUBLIC_DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
     restart: unless-stopped
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-https://lithiumbot.xyz/api}
+      NEXT_PUBLIC_DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       NEXTAUTH_URL: ${FRONTEND_URL:-https://lithiumbot.xyz}
       NEXTAUTH_SECRET: ${JWT_SECRET}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
