@@ -869,5 +869,8 @@ async def event_stream(guild_id: str, user: User = Depends(get_me)):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "X-Accel-Buffering": "no",
         }
     )
