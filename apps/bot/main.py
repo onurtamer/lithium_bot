@@ -149,7 +149,7 @@ class LithiumBot(commands.Bot):
         self.metrics_task = self.loop.create_task(self.metrics_saver())
 
     async def on_message(self, message):
-        """Track message counts per guild"""
+        """Track message counts and publish to WebSocket for real-time dashboard"""
         if message.author.bot or not message.guild:
             return
 
@@ -169,6 +169,21 @@ class LithiumBot(commands.Bot):
             await r.incr(week_key)
             await r.expire(week_key, 604800)  # 7 days expiry
 
+            # REAL-TIME: Publish message event for live dashboard
+            event_data = json.dumps({
+                "type": "message",
+                "data": {
+                    "guild_id": str(message.guild.id),
+                    "channel_id": str(message.channel.id),
+                    "channel_name": message.channel.name,
+                    "author_id": str(message.author.id),
+                    "author_name": message.author.display_name,
+                    "content_preview": message.content[:100] if message.content else "",
+                    "timestamp": message.created_at.isoformat()
+                }
+            })
+            await r.publish(f"guild:{message.guild.id}:events", event_data)
+
             await r.aclose()
         except Exception as e:
             logger.warning(f"Message tracking error: {e}")
@@ -177,7 +192,7 @@ class LithiumBot(commands.Bot):
         await self.process_commands(message)
 
     async def on_member_join(self, member):
-        """Track new member joins for dashboard stats"""
+        """Track new member joins and publish to WebSocket for real-time dashboard"""
         try:
             import redis.asyncio as redis_async
 
@@ -189,9 +204,46 @@ class LithiumBot(commands.Bot):
             await r.incr(key)
             await r.expire(key, 86400)  # 24h expiry
 
+            # REAL-TIME: Publish member join event
+            event_data = json.dumps({
+                "type": "member_join",
+                "data": {
+                    "guild_id": str(member.guild.id),
+                    "user_id": str(member.id),
+                    "username": member.display_name,
+                    "avatar_url": str(member.display_avatar.url) if member.display_avatar else None,
+                    "timestamp": member.joined_at.isoformat() if member.joined_at else None
+                }
+            })
+            await r.publish(f"guild:{member.guild.id}:events", event_data)
+
             await r.aclose()
         except Exception as e:
             logger.warning(f"Member join tracking error: {e}")
+
+    async def on_member_remove(self, member):
+        """Track member leave and publish to WebSocket for real-time dashboard"""
+        try:
+            import redis.asyncio as redis_async
+
+            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+            r = redis_async.from_url(redis_url)
+
+            # REAL-TIME: Publish member leave event
+            event_data = json.dumps({
+                "type": "member_leave",
+                "data": {
+                    "guild_id": str(member.guild.id),
+                    "user_id": str(member.id),
+                    "username": member.display_name,
+                    "timestamp": datetime.now().isoformat()
+                }
+            })
+            await r.publish(f"guild:{member.guild.id}:events", event_data)
+
+            await r.aclose()
+        except Exception as e:
+            logger.warning(f"Member leave tracking error: {e}")
 
     async def guild_stats_updater(self):
         """Background task to cache guild stats to Redis for the dashboard"""

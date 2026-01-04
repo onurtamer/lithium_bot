@@ -12,6 +12,7 @@ import structlog
 from apps.api.auth import User, get_me
 from apps.api.db import get_db
 from apps.api.redis_client import get_redis
+from apps.api.event_bus import event_bus, guild_channel, EventTypes
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -491,6 +492,13 @@ async def claim_ticket(
     except Exception as e:
         logger.warning(f"Redis publish error: {e}")
     
+    # REAL-TIME: Publish ticket update event
+    await event_bus.publish(
+        f"guild:{guild_id}:events",
+        EventTypes.TICKET_UPDATE,
+        {"ticket_id": ticket_id, "action": "claimed", "claimed_by": user.discord_id}
+    )
+    
     return ApiResponse(data={"claimed": True})
 
 
@@ -798,6 +806,13 @@ async def update_settings(
             }
         )
         await db.commit()
+        
+        # REAL-TIME: Publish settings update event
+        await event_bus.publish(
+            f"guild:{guild_id}:events",
+            EventTypes.SETTINGS_UPDATE,
+            {"settings": settings.model_dump(), "updated_by": str(user.id)}
+        )
     except Exception as e:
         logger.error(f"Settings update error: {e}")
         raise HTTPException(status_code=500, detail="Failed to update settings")

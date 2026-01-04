@@ -18,6 +18,7 @@ sys.path.append(
 
 import redis.asyncio as redis_async
 import structlog
+from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -27,6 +28,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.router import auth, guilds, guilds_v2, modules
+from apps.api.websocket import router as ws_router
+from apps.api.event_bus import event_bus
 from lithium_core.database.session import get_db
 
 # Structlog Config
@@ -41,7 +44,22 @@ logger = structlog.get_logger()
 
 # Rate Limiter
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="Lithium Bot API")
+
+
+# Lifespan for startup/shutdown events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await event_bus.connect()
+    await event_bus.start_listening()
+    logger.info("EventBus started")
+    yield
+    # Shutdown
+    await event_bus.disconnect()
+    logger.info("EventBus stopped")
+
+
+app = FastAPI(title="Lithium Bot API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -71,10 +89,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
 app.include_router(auth.router)
 app.include_router(guilds.router)
 app.include_router(modules.router)
 app.include_router(guilds_v2.router)
+app.include_router(ws_router)  # WebSocket gateway
 
 
 @app.get("/health", response_model=None)
