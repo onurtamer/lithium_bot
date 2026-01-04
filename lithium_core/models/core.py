@@ -17,6 +17,7 @@ class Guild(Base, TimestampMixin):
     discord_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     name: Mapped[str] = mapped_column(String)
     owner_id: Mapped[str] = mapped_column(String)
+    logs_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     
     # Module configs will link here
 

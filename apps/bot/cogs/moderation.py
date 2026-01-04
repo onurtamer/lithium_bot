@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import select
 from lithium_core.database.session import AsyncSessionLocal
 from lithium_core.models import ModerationCase, CaseNote
+from lithium_core.utils.audit import log_audit
 from apps.bot.i18n import translate
 from apps.bot.utils.permissions import check_command_permission
 
@@ -90,6 +91,9 @@ class Moderation(commands.Cog):
             await db.commit()
             await db.refresh(case)
             case_id = case.id
+        
+        # Log to audit_logs for dashboard
+        await log_audit(str(interaction.guild_id), str(interaction.user.id), "BAN", str(user.id), {"reason": moderation_reason})
 
         embed = self.create_mod_embed(translate("user_banned", user=user.name), discord.Color.red(), user, interaction.user, moderation_reason, case_id)
         await interaction.edit_original_response(content=None, embed=embed, view=None)
@@ -118,6 +122,9 @@ class Moderation(commands.Cog):
             await db.commit()
             await db.refresh(case)
             case_id = case.id
+        
+        # Log to audit_logs for dashboard
+        await log_audit(str(interaction.guild_id), str(interaction.user.id), "SOFTBAN", str(user.id), {"reason": reason})
 
         embed = self.create_mod_embed(translate("user_softbanned", lang="en"), discord.Color.orange(), user, interaction.user, reason, case_id)
         await interaction.response.send_message(embed=embed)
@@ -145,6 +152,9 @@ class Moderation(commands.Cog):
             await db.commit()
             await db.refresh(case)
             case_id = case.id
+        
+        # Log to audit_logs for dashboard
+        await log_audit(str(interaction.guild_id), str(interaction.user.id), "KICK", str(user.id), {"reason": moderation_reason})
 
         embed = self.create_mod_embed(translate("user_kicked", lang="en", user=user.name), discord.Color.gold(), user, interaction.user, moderation_reason, case_id)
         await interaction.response.send_message(embed=embed)

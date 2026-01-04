@@ -34,11 +34,16 @@ class AuditLogging(commands.Cog):
         return None
 
     async def is_logging_enabled(self, guild_id: int) -> bool:
-        """Loglama aktif mi kontrol et"""
-        async with AsyncSessionLocal() as db:
-            stmt = select(Guild).where(Guild.discord_id == str(guild_id))
-            guild = (await db.execute(stmt)).scalar_one_or_none()
-            return guild.logs_enabled if guild else False
+        """Loglama aktif mi kontrol et - default True"""
+        try:
+            async with AsyncSessionLocal() as db:
+                stmt = select(Guild).where(Guild.discord_id == str(guild_id))
+                guild = (await db.execute(stmt)).scalar_one_or_none()
+                if guild and hasattr(guild, 'logs_enabled'):
+                    return guild.logs_enabled
+        except Exception as e:
+            logger.warning(f"Log check error: {e}")
+        return True  # Default: logging enabled
 
     async def save_audit_log(self, guild_id: str, user_id: str, action: str, target: str, changes: dict = None):
         """Audit log kaydet"""
@@ -219,6 +224,8 @@ class AuditLogging(commands.Cog):
         if embed:
             embed.set_thumbnail(url=member.display_avatar.url)
             await channel.send(embed=embed)
+            action = "VOICE_JOIN" if after.channel and not before.channel else "VOICE_LEAVE" if before.channel and not after.channel else "VOICE_MOVE"
+            await self.save_audit_log(str(member.guild.id), str(member.id), action, str(after.channel.id if after.channel else before.channel.id))
 
     # ==================== ÜYE LOGLAR ====================
     
@@ -258,6 +265,7 @@ class AuditLogging(commands.Cog):
                 
                 embed.set_thumbnail(url=after.display_avatar.url)
                 await channel.send(embed=embed)
+                await self.save_audit_log(str(after.guild.id), str(after.id), "ROLE_CHANGE", str(after.id))
         
         # Takma ad değişikliği
         if before.nick != after.nick:
@@ -289,6 +297,7 @@ class AuditLogging(commands.Cog):
         )
         embed.add_field(name="Kullanıcı", value=f"{user.mention} ({user.id})", inline=False)
         embed.set_thumbnail(url=user.display_avatar.url)
+        await self.save_audit_log(str(guild.id), str(user.id), "MEMBER_BAN", str(user.id))
         
         # Audit log'dan ban sebebini almaya çalış
         try:
@@ -319,6 +328,7 @@ class AuditLogging(commands.Cog):
         )
         embed.add_field(name="Kullanıcı", value=f"{user.mention} ({user.id})", inline=False)
         embed.set_thumbnail(url=user.display_avatar.url)
+        await self.save_audit_log(str(guild.id), str(user.id), "MEMBER_UNBAN", str(user.id))
         
         await channel.send(embed=embed)
 
