@@ -825,8 +825,8 @@ async def update_settings(
 # ============================================
 
 @router.get("/events")
-async def event_stream(guild_id: str, user: User = Depends(get_me)):
-    """Server-Sent Events for real-time updates"""
+async def event_stream(guild_id: str):
+    """Server-Sent Events for real-time updates - No auth required for live stats"""
     
     async def generate():
         while True:
