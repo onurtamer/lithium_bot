@@ -102,15 +102,18 @@ export default function DashboardPage() {
             es.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    if (data.type === 'stats_update' && dashboard) {
-                        setDashboard(prev => prev ? {
-                            ...prev,
-                            members: data.data.members || prev.members,
-                            messages: data.data.messages || prev.messages,
-                            system_status: prev.system_status.map(s =>
-                                s.name === 'Bot' ? { ...s, status: data.data.bot_status } : s
-                            )
-                        } : prev);
+                    if (data.type === 'stats_update') {
+                        setDashboard(prev => {
+                            if (!prev) return prev;
+                            return {
+                                ...prev,
+                                members: data.data.members || prev.members,
+                                messages: data.data.messages || prev.messages,
+                                system_status: prev.system_status.map(s =>
+                                    s.name === 'Bot' ? { ...s, status: data.data.bot_status } : s
+                                )
+                            };
+                        });
                     }
                 } catch (e) {
                     console.warn('SSE parse error:', e);

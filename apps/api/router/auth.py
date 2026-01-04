@@ -25,8 +25,10 @@ class KeyLoginRequest(BaseModel):
 
 @router.get("/discord")
 async def login_discord():
+    # User authentication only - no bot scope
+    # Bot installation is handled separately via invite URL
     return RedirectResponse(
-        f"https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&permissions=8&response_type=code&redirect_uri={DISCORD_REDIRECT_URI}&integration_type=0&scope=email+guilds+identify+guilds.members.read+applications.commands+bot"
+        f"https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&response_type=code&redirect_uri={DISCORD_REDIRECT_URI}&scope=identify+email+guilds"
     )
 
 

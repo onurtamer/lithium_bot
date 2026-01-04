@@ -383,10 +383,18 @@ async def get_tickets(
     
     tickets = []
     try:
-        query = "SELECT id, channel_id, owner_id, status, category, created_at FROM tickets WHERE guild_id = :gid"
+        # Optimized: Single query with LEFT JOIN for message counts
+        query = """
+            SELECT t.id, t.channel_id, t.owner_id, t.status, t.category, t.created_at,
+                   COALESCE(COUNT(tm.id), 0) as msg_count
+            FROM tickets t
+            LEFT JOIN ticket_messages tm ON tm.ticket_id = t.id
+            WHERE t.guild_id = :gid
+        """
         if status:
-            query += " AND status = :status"
-        query += " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+            query += " AND t.status = :status"
+        query += " GROUP BY t.id, t.channel_id, t.owner_id, t.status, t.category, t.created_at"
+        query += " ORDER BY t.created_at DESC LIMIT :limit OFFSET :offset"
         
         params = {"gid": guild_id, "limit": limit, "offset": offset}
         if status:
@@ -394,20 +402,13 @@ async def get_tickets(
         
         result = await db.execute(text(query), params)
         for row in result.fetchall():
-            # Get message count
-            msg_result = await db.execute(
-                text("SELECT COUNT(*) FROM ticket_messages WHERE ticket_id = :tid"),
-                {"tid": row[0]}
-            )
-            msg_count = msg_result.scalar() or 0
-            
             tickets.append(TicketInfo(
                 id=row[0],
                 channel_id=row[1],
                 user_id=row[2],
                 subject=row[4] or "Support Ticket",
-                status=row[3].lower(),
-                messages_count=msg_count,
+                status=row[3].lower() if row[3] else "open",
+                messages_count=row[6],
                 created_at=row[5].isoformat() if row[5] else ""
             ))
     except Exception as e:
