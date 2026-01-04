@@ -121,7 +121,8 @@ async def discord_callback(
             value=encoded_jwt,
             httponly=True,
             samesite="lax",
-            secure=is_production,  # True in production (HTTPS)
+            secure=is_production,
+            path="/",
             max_age=60 * 60 * 24 * 7,  # 7 days
         )
         return response

@@ -49,14 +49,20 @@ limiter = Limiter(key_func=get_remote_address)
 # Lifespan for startup/shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    await event_bus.connect()
-    await event_bus.start_listening()
-    logger.info("EventBus started")
+    # Startup - with error handling to prevent 502
+    try:
+        await event_bus.connect()
+        await event_bus.start_listening()
+        logger.info("EventBus started")
+    except Exception as e:
+        logger.error(f"EventBus startup failed: {e}")
     yield
     # Shutdown
-    await event_bus.disconnect()
-    logger.info("EventBus stopped")
+    try:
+        await event_bus.disconnect()
+        logger.info("EventBus stopped")
+    except Exception as e:
+        logger.error(f"EventBus shutdown error: {e}")
 
 
 app = FastAPI(title="Lithium Bot API", lifespan=lifespan)
