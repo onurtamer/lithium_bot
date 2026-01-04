@@ -4,6 +4,7 @@ Standardized endpoints for dashboard, moderation, tickets, analytics, settings
 """
 import asyncio
 import json
+import os
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -826,27 +827,34 @@ async def update_settings(
 
 @router.get("/events")
 async def event_stream(guild_id: str):
-    """Server-Sent Events for real-time updates - No auth required for live stats"""
+    """Server-Sent Events for real-time updates using Redis Pub/Sub"""
+    import redis.asyncio as redis_async
     
     async def generate():
-        while True:
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        
+        # Helper to fetch current stats from Redis
+        async def get_current_stats():
             try:
-                r = await get_redis()
+                r = redis_async.from_url(redis_url)
                 
-                # Get latest stats
                 members_raw = await r.get(f"guild:stats:{guild_id}:members")
                 members = json.loads(members_raw) if members_raw else {"total": 0, "online": 0}
                 
-                messages_raw = await r.get(f"guild:stats:{guild_id}:messages")
-                messages = json.loads(messages_raw) if messages_raw else {"today": 0, "week": 0}
+                # Read the actual keys that bot writes to
+                today_count = await r.get(f"guild:stats:{guild_id}:messages:today")
+                week_count = await r.get(f"guild:stats:{guild_id}:messages:week")
+                messages = {
+                    "today": int(today_count) if today_count else 0,
+                    "week": int(week_count) if week_count else 0
+                }
                 
-                # Check bot heartbeat
                 heartbeat = await r.get(f"bot:heartbeat:{guild_id}")
                 bot_status = "online" if heartbeat else "offline"
                 
                 await r.aclose()
                 
-                event_data = {
+                return {
                     "type": "stats_update",
                     "data": {
                         "members": members,
@@ -854,14 +862,61 @@ async def event_stream(guild_id: str):
                         "bot_status": bot_status
                     }
                 }
-                
-                yield f"data: {json.dumps(event_data)}\n\n"
-                
             except Exception as e:
-                logger.error(f"SSE error: {e}")
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                logger.error(f"Stats fetch error: {e}")
+                return {"type": "stats_update", "data": {"members": {"total": 0, "online": 0}, "messages": {"today": 0, "week": 0}, "bot_status": "unknown"}}
+        
+        # Send initial stats immediately
+        initial_stats = await get_current_stats()
+        yield f"data: {json.dumps(initial_stats)}\n\n"
+        
+        # Set up Redis Pub/Sub for real-time events
+        queue = asyncio.Queue()
+        pubsub = None
+        listener_task = None
+        
+        try:
+            r = redis_async.from_url(redis_url)
+            pubsub = r.pubsub()
+            channel = f"guild:{guild_id}:events"
+            await pubsub.subscribe(channel)
             
-            await asyncio.sleep(10)
+            # Background listener that puts messages into queue
+            async def listen():
+                try:
+                    async for message in pubsub.listen():
+                        if message["type"] == "message":
+                            await queue.put(message["data"])
+                except Exception as e:
+                    logger.error(f"Pub/Sub listener error: {e}")
+            
+            listener_task = asyncio.create_task(listen())
+            
+            # Main loop: wait for events or timeout for heartbeat
+            while True:
+                try:
+                    # Wait for event with 5 second timeout (for heartbeat)
+                    await asyncio.wait_for(queue.get(), timeout=5.0)
+                    
+                    # Event received! Fetch fresh stats and send immediately
+                    stats = await get_current_stats()
+                    yield f"data: {json.dumps(stats)}\n\n"
+                    
+                except asyncio.TimeoutError:
+                    # No event in 5 seconds - send heartbeat with current stats
+                    stats = await get_current_stats()
+                    yield f"data: {json.dumps(stats)}\n\n"
+                    
+        except Exception as e:
+            logger.error(f"SSE Pub/Sub error: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        finally:
+            # Cleanup
+            if listener_task:
+                listener_task.cancel()
+            if pubsub:
+                await pubsub.unsubscribe(f"guild:{guild_id}:events")
+                await pubsub.aclose()
     
     return StreamingResponse(
         generate(),
@@ -874,3 +929,4 @@ async def event_stream(guild_id: str):
             "X-Accel-Buffering": "no",
         }
     )
+
