@@ -83,9 +83,9 @@ class TempMute(Base, TimestampMixin):
     __tablename__ = "temp_mutes"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    guild_id: Mapped[str] = mapped_column(String, index=True)
-    user_id: Mapped[str] = mapped_column(String, index=True)
-    moderator_id: Mapped[str] = mapped_column(String)
+    guild_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    moderator_id: Mapped[int] = mapped_column(BigInteger)
     reason: Mapped[str] = mapped_column(Text)
     muted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     unmute_at: Mapped[datetime] = mapped_column(DateTime)
@@ -97,8 +97,8 @@ class VoiceSpamLog(Base, TimestampMixin):
     __tablename__ = "voice_spam_logs"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    guild_id: Mapped[str] = mapped_column(String, index=True)
-    user_id: Mapped[str] = mapped_column(String, index=True)
+    guild_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
     action_taken: Mapped[str] = mapped_column(String)  # DISCONNECT, MUTE
     join_count: Mapped[int] = mapped_column(Integer)
 
@@ -108,8 +108,8 @@ class ModerationWarning(Base, TimestampMixin):
     __tablename__ = "moderation_warnings"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    guild_id: Mapped[str] = mapped_column(String, index=True)
-    user_id: Mapped[str] = mapped_column(String, index=True)
-    moderator_id: Mapped[str] = mapped_column(String)
+    guild_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    moderator_id: Mapped[int] = mapped_column(BigInteger)
     reason: Mapped[str] = mapped_column(Text)
     active: Mapped[bool] = mapped_column(Boolean, default=True)

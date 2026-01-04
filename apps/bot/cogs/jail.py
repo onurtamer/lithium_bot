@@ -403,9 +403,9 @@ class JailSystem(commands.Cog):
             # Database kaydet
             async with AsyncSessionLocal() as db:
                 mute = TempMute(
-                    guild_id=str(interaction.guild_id),
-                    user_id=str(member.id),
-                    moderator_id=str(interaction.user.id),
+                    guild_id=int(interaction.guild_id),
+                    user_id=int(member.id),
+                    moderator_id=int(interaction.user.id),
                     reason=reason,
                     unmute_at=datetime.utcnow() + timedelta(seconds=seconds)
                 )
@@ -444,8 +444,8 @@ class JailSystem(commands.Cog):
             # Database güncelle
             async with AsyncSessionLocal() as db:
                 stmt = select(TempMute).where(
-                    TempMute.guild_id == str(interaction.guild_id),
-                    TempMute.user_id == str(member.id),
+                    TempMute.guild_id == int(interaction.guild_id),
+                    TempMute.user_id == int(member.id),
                     TempMute.active == True
                 )
                 mutes = (await db.execute(stmt)).scalars().all()
