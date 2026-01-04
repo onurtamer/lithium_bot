@@ -2,19 +2,24 @@
 Generic Module Configuration Router for Lithium Control Center
 Provides CRUD operations for all module settings with versioning support.
 """
-from fastapi import APIRouter, Depends, HTTPException, Body, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
-from lithium_core.database.session import get_db
-from lithium_core.models import User, OAuthSession
-from .auth import get_me
-from pydantic import BaseModel
-from typing import Optional, Any, List, Dict
-from datetime import datetime
-import redis.asyncio as redis
+
+from __future__ import annotations
+
 import json
 import os
+from datetime import datetime
+from typing import Any
+
+import redis.asyncio as redis
 import structlog
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.api.auth import get_me
+from lithium_core.database.session import get_db
+from lithium_core.models import User
 
 logger = structlog.get_logger()
 
@@ -23,6 +28,7 @@ router = APIRouter(prefix="/guilds/{guild_id}", tags=["modules"])
 # ============================================
 # Pydantic Models
 # ============================================
+
 
 class ModuleStatus(BaseModel):
     module_key: str
@@ -33,22 +39,25 @@ class ModuleStatus(BaseModel):
     enabled: bool
     risk_level: str
     has_draft: bool
-    last_updated: Optional[str] = None
+    last_updated: str | None = None
+
 
 class ModuleConfig(BaseModel):
     module_key: str
     enabled: bool
-    config: Dict[str, Any]
+    config: dict[str, Any]
     last_updated: str
-    updated_by: Optional[Dict[str, str]] = None
+    updated_by: dict[str, str] | None = None
     version: int
     has_draft: bool
-    draft_config: Optional[Dict[str, Any]] = None
+    draft_config: dict[str, Any] | None = None
+
 
 class ModuleUpdateRequest(BaseModel):
-    enabled: Optional[bool] = None
-    config: Optional[Dict[str, Any]] = None
+    enabled: bool | None = None
+    config: dict[str, Any] | None = None
     publish: bool = True
+
 
 class ModuleUpdateResponse(BaseModel):
     status: str
@@ -56,22 +65,26 @@ class ModuleUpdateResponse(BaseModel):
     published: bool
     bot_notified: bool
 
+
 class ModuleTestRequest(BaseModel):
     test_type: str  # message, user, event
-    content: Optional[str] = None
-    user_id: Optional[str] = None
-    event_data: Optional[Dict[str, Any]] = None
+    content: str | None = None
+    user_id: str | None = None
+    event_data: dict[str, Any] | None = None
+
 
 class ModuleTestResponse(BaseModel):
     would_trigger: bool
-    rules_matched: List[Dict[str, str]]
-    preview_response: Optional[Dict[str, Any]] = None
+    rules_matched: list[dict[str, str]]
+    preview_response: dict[str, Any] | None = None
+
 
 class GuildMetrics(BaseModel):
-    members: Dict[str, int]
-    messages: Dict[str, int]
-    moderation: Dict[str, int]
-    leveling: Optional[Dict[str, int]] = None
+    members: dict[str, int]
+    messages: dict[str, int]
+    moderation: dict[str, int]
+    leveling: dict[str, int] | None = None
+
 
 # ============================================
 # Module Definitions
@@ -84,7 +97,10 @@ MODULES = {
         "icon": "FileText",
         "category": "moderation",
         "risk_level": "low",
-        "default_config": {"log_channel_id": None, "events": ["message_edit", "message_delete", "member_join", "member_leave"]}
+        "default_config": {
+            "log_channel_id": None,
+            "events": ["message_edit", "message_delete", "member_join", "member_leave"],
+        },
     },
     "automod": {
         "display_name": "Otomatik Moderasyon",
@@ -95,10 +111,22 @@ MODULES = {
         "default_config": {
             "profanity": {"enabled": True, "customWords": [], "action": "delete"},
             "links": {"enabled": True, "whitelist": [], "action": "delete"},
-            "caps": {"enabled": True, "threshold": 70, "minLength": 10, "action": "warn"},
-            "spam": {"enabled": True, "messageThreshold": 5, "interval": 5, "action": "mute", "muteDuration": 300},
-            "exemptRoles": [], "exemptChannels": []
-        }
+            "caps": {
+                "enabled": True,
+                "threshold": 70,
+                "minLength": 10,
+                "action": "warn",
+            },
+            "spam": {
+                "enabled": True,
+                "messageThreshold": 5,
+                "interval": 5,
+                "action": "mute",
+                "muteDuration": 300,
+            },
+            "exemptRoles": [],
+            "exemptChannels": [],
+        },
     },
     "jail": {
         "display_name": "Hapis Sistemi",
@@ -107,10 +135,17 @@ MODULES = {
         "category": "moderation",
         "risk_level": "high",
         "default_config": {
-            "jailRoleId": None, "jailChannelId": None, "logChannelId": None,
-            "autoJail": {"onRaidDetection": True, "onSpamThreshold": 5, "onWarningThreshold": 3},
-            "jailMessage": "⛓️ **{user}** hapse atıldı!", "releaseMessage": "🔓 **{user}** serbest bırakıldı!"
-        }
+            "jailRoleId": None,
+            "jailChannelId": None,
+            "logChannelId": None,
+            "autoJail": {
+                "onRaidDetection": True,
+                "onSpamThreshold": 5,
+                "onWarningThreshold": 3,
+            },
+            "jailMessage": "⛓️ **{user}** hapse atıldı!",
+            "releaseMessage": "🔓 **{user}** serbest bırakıldı!",
+        },
     },
     "temp_mute": {
         "display_name": "Süreli Susturma",
@@ -118,7 +153,11 @@ MODULES = {
         "icon": "VolumeX",
         "category": "moderation",
         "risk_level": "medium",
-        "default_config": {"muteRoleId": None, "logChannelId": None, "defaultDuration": 600}
+        "default_config": {
+            "muteRoleId": None,
+            "logChannelId": None,
+            "defaultDuration": 600,
+        },
     },
     "anti_raid": {
         "display_name": "Raid Koruması",
@@ -126,7 +165,12 @@ MODULES = {
         "icon": "ShieldAlert",
         "category": "moderation",
         "risk_level": "high",
-        "default_config": {"joinThreshold": 10, "joinInterval": 60, "action": "lockdown", "alertChannelId": None}
+        "default_config": {
+            "joinThreshold": 10,
+            "joinInterval": 60,
+            "action": "lockdown",
+            "alertChannelId": None,
+        },
     },
     "tickets": {
         "display_name": "Ticket Sistemi",
@@ -134,7 +178,11 @@ MODULES = {
         "icon": "Ticket",
         "category": "utility",
         "risk_level": "low",
-        "default_config": {"categoryId": None, "supportRoles": [], "welcomeMessage": "Merhaba! Size nasıl yardımcı olabiliriz?"}
+        "default_config": {
+            "categoryId": None,
+            "supportRoles": [],
+            "welcomeMessage": "Merhaba! Size nasıl yardımcı olabiliriz?",
+        },
     },
     "leveling": {
         "display_name": "Seviye Sistemi",
@@ -143,11 +191,19 @@ MODULES = {
         "category": "community",
         "risk_level": "low",
         "default_config": {
-            "xpPerMessage": {"min": 15, "max": 25}, "xpCooldown": 60,
-            "levelUpChannel": None, "levelUpMessage": "🎉 Tebrikler {user}! **Seviye {level}** oldun!",
-            "rewards": [], "ignoredChannels": [], "ignoredRoles": [],
-            "rankCard": {"backgroundColor": "#1a1a24", "accentColor": "#5865F2", "showAvatar": True}
-        }
+            "xpPerMessage": {"min": 15, "max": 25},
+            "xpCooldown": 60,
+            "levelUpChannel": None,
+            "levelUpMessage": "🎉 Tebrikler {user}! **Seviye {level}** oldun!",
+            "rewards": [],
+            "ignoredChannels": [],
+            "ignoredRoles": [],
+            "rankCard": {
+                "backgroundColor": "#1a1a24",
+                "accentColor": "#5865F2",
+                "showAvatar": True,
+            },
+        },
     },
     "economy": {
         "display_name": "Ekonomi",
@@ -155,7 +211,12 @@ MODULES = {
         "icon": "Coins",
         "category": "community",
         "risk_level": "low",
-        "default_config": {"currencyName": "Coin", "currencySymbol": "💰", "dailyAmount": 100, "workCooldown": 3600}
+        "default_config": {
+            "currencyName": "Coin",
+            "currencySymbol": "💰",
+            "dailyAmount": 100,
+            "workCooldown": 3600,
+        },
     },
     "starboard": {
         "display_name": "Starboard",
@@ -163,7 +224,12 @@ MODULES = {
         "icon": "Star",
         "category": "community",
         "risk_level": "low",
-        "default_config": {"channelId": None, "threshold": 3, "emoji": "⭐", "ignoredChannels": []}
+        "default_config": {
+            "channelId": None,
+            "threshold": 3,
+            "emoji": "⭐",
+            "ignoredChannels": [],
+        },
     },
     "reaction_roles": {
         "display_name": "Tepki Rolleri",
@@ -171,7 +237,7 @@ MODULES = {
         "icon": "Smile",
         "category": "utility",
         "risk_level": "medium",
-        "default_config": {"maxMenusPerGuild": 10}
+        "default_config": {"maxMenusPerGuild": 10},
     },
     "giveaways": {
         "display_name": "Çekilişler",
@@ -179,7 +245,11 @@ MODULES = {
         "icon": "Gift",
         "category": "community",
         "risk_level": "low",
-        "default_config": {"defaultChannel": None, "maxWinners": 10, "requireRoles": False}
+        "default_config": {
+            "defaultChannel": None,
+            "maxWinners": 10,
+            "requireRoles": False,
+        },
     },
     "birthdays": {
         "display_name": "Doğum Günleri",
@@ -187,7 +257,11 @@ MODULES = {
         "icon": "Cake",
         "category": "community",
         "risk_level": "low",
-        "default_config": {"channelId": None, "roleId": None, "message": "🎂 Bugün {user} adlı üyemizin doğum günü!"}
+        "default_config": {
+            "channelId": None,
+            "roleId": None,
+            "message": "🎂 Bugün {user} adlı üyemizin doğum günü!",
+        },
     },
     "suggestions": {
         "display_name": "Öneri Sistemi",
@@ -195,7 +269,12 @@ MODULES = {
         "icon": "MessageSquarePlus",
         "category": "utility",
         "risk_level": "low",
-        "default_config": {"channelId": None, "approvalRequired": False, "upvoteEmoji": "👍", "downvoteEmoji": "👎"}
+        "default_config": {
+            "channelId": None,
+            "approvalRequired": False,
+            "upvoteEmoji": "👍",
+            "downvoteEmoji": "👎",
+        },
     },
     "fun_games": {
         "display_name": "Eğlence & Oyunlar",
@@ -203,7 +282,12 @@ MODULES = {
         "icon": "Gamepad2",
         "category": "fun",
         "risk_level": "low",
-        "default_config": {"rpsEnabled": True, "coinflipEnabled": True, "8ballEnabled": True, "duelEnabled": True}
+        "default_config": {
+            "rpsEnabled": True,
+            "coinflipEnabled": True,
+            "8ballEnabled": True,
+            "duelEnabled": True,
+        },
     },
     "utilities": {
         "display_name": "Yardımcı Araçlar",
@@ -211,7 +295,12 @@ MODULES = {
         "icon": "Wrench",
         "category": "utility",
         "risk_level": "low",
-        "default_config": {"translateEnabled": True, "pollEnabled": True, "weatherEnabled": True, "financeEnabled": True}
+        "default_config": {
+            "translateEnabled": True,
+            "pollEnabled": True,
+            "weatherEnabled": True,
+            "financeEnabled": True,
+        },
     },
 }
 
@@ -219,35 +308,47 @@ MODULES = {
 # Helper Functions
 # ============================================
 
+
 async def get_redis() -> redis.Redis:
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     return redis.from_url(redis_url)
+
 
 async def notify_bot(guild_id: str, module_key: str, action: str = "update"):
     """Publish config change event to Redis for bot to pick up"""
     try:
         r = await get_redis()
-        await r.publish("guild_config_changed", json.dumps({
-            "guild_id": guild_id,
-            "module": module_key,
-            "action": action,
-            "timestamp": datetime.utcnow().isoformat()
-        }))
+        await r.publish(
+            "guild_config_changed",
+            json.dumps(
+                {
+                    "guild_id": guild_id,
+                    "module": module_key,
+                    "action": action,
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            ),
+        )
         await r.aclose()
         return True
     except Exception as e:
         logger.error(f"Failed to notify bot: {e}")
         return False
 
-async def get_guild_module_config(db: AsyncSession, guild_id: str, module_key: str) -> dict:
+
+async def get_guild_module_config(
+    db: AsyncSession, guild_id: str, module_key: str
+) -> dict:
     """Get module config from database or return default"""
     # Try to fetch from guild_module_settings table
     result = await db.execute(
-        text("SELECT enabled, config_json, draft_json, version, updated_by, updated_at FROM guild_module_settings WHERE guild_id = :gid AND module_key = :mk"),
-        {"gid": guild_id, "mk": module_key}
+        text(
+            "SELECT enabled, config_json, draft_json, version, updated_by, updated_at FROM guild_module_settings WHERE guild_id = :gid AND module_key = :mk"
+        ),
+        {"gid": guild_id, "mk": module_key},
     )
     row = result.fetchone()
-    
+
     if row:
         return {
             "enabled": row[0],
@@ -255,7 +356,7 @@ async def get_guild_module_config(db: AsyncSession, guild_id: str, module_key: s
             "draft_config": row[2],
             "version": row[3] or 1,
             "updated_by": row[4],
-            "updated_at": row[5].isoformat() if row[5] else None
+            "updated_at": row[5].isoformat() if row[5] else None,
         }
     else:
         # Return default config
@@ -265,41 +366,61 @@ async def get_guild_module_config(db: AsyncSession, guild_id: str, module_key: s
             "draft_config": None,
             "version": 1,
             "updated_by": None,
-            "updated_at": None
+            "updated_at": None,
         }
 
-async def save_guild_module_config(db: AsyncSession, guild_id: str, module_key: str, 
-                                    enabled: bool, config: dict, user_id: str, 
-                                    publish: bool = True) -> int:
+
+async def save_guild_module_config(
+    db: AsyncSession,
+    guild_id: str,
+    module_key: str,
+    enabled: bool,
+    config: dict,
+    user_id: str,
+    publish: bool = True,
+) -> int:
     """Save module config to database"""
     now = datetime.utcnow()
-    
+
     # Check if exists
     result = await db.execute(
-        text("SELECT id, version FROM guild_module_settings WHERE guild_id = :gid AND module_key = :mk"),
-        {"gid": guild_id, "mk": module_key}
+        text(
+            "SELECT id, version FROM guild_module_settings WHERE guild_id = :gid AND module_key = :mk"
+        ),
+        {"gid": guild_id, "mk": module_key},
     )
     row = result.fetchone()
-    
+
     if row:
         existing_id, current_version = row[0], row[1] or 1
         new_version = current_version + 1 if publish else current_version
-        
+
         if publish:
             await db.execute(
                 text("""UPDATE guild_module_settings 
                         SET enabled = :enabled, config_json = :config, draft_json = NULL, 
                             version = :version, updated_by = :user_id, updated_at = :now
                         WHERE id = :id"""),
-                {"enabled": enabled, "config": json.dumps(config), "version": new_version, 
-                 "user_id": user_id, "now": now, "id": existing_id}
+                {
+                    "enabled": enabled,
+                    "config": json.dumps(config),
+                    "version": new_version,
+                    "user_id": user_id,
+                    "now": now,
+                    "id": existing_id,
+                },
             )
         else:
             await db.execute(
                 text("""UPDATE guild_module_settings 
                         SET draft_json = :draft, updated_by = :user_id, updated_at = :now
                         WHERE id = :id"""),
-                {"draft": json.dumps(config), "user_id": user_id, "now": now, "id": existing_id}
+                {
+                    "draft": json.dumps(config),
+                    "user_id": user_id,
+                    "now": now,
+                    "id": existing_id,
+                },
             )
         await db.commit()
         return new_version
@@ -309,102 +430,133 @@ async def save_guild_module_config(db: AsyncSession, guild_id: str, module_key: 
             await db.execute(
                 text("""INSERT INTO guild_module_settings (guild_id, module_key, enabled, config_json, version, updated_by, updated_at)
                         VALUES (:gid, :mk, :enabled, :config, 1, :user_id, :now)"""),
-                {"gid": guild_id, "mk": module_key, "enabled": enabled, 
-                 "config": json.dumps(config), "user_id": user_id, "now": now}
+                {
+                    "gid": guild_id,
+                    "mk": module_key,
+                    "enabled": enabled,
+                    "config": json.dumps(config),
+                    "user_id": user_id,
+                    "now": now,
+                },
             )
         else:
             await db.execute(
                 text("""INSERT INTO guild_module_settings (guild_id, module_key, enabled, draft_json, version, updated_by, updated_at)
                         VALUES (:gid, :mk, :enabled, :draft, 1, :user_id, :now)"""),
-                {"gid": guild_id, "mk": module_key, "enabled": enabled,
-                 "draft": json.dumps(config), "user_id": user_id, "now": now}
+                {
+                    "gid": guild_id,
+                    "mk": module_key,
+                    "enabled": enabled,
+                    "draft": json.dumps(config),
+                    "user_id": user_id,
+                    "now": now,
+                },
             )
         await db.commit()
         return 1
+
 
 # ============================================
 # Endpoints
 # ============================================
 
-@router.get("/modules", response_model=List[ModuleStatus])
-async def list_modules(guild_id: str, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+
+@router.get("/modules", response_model=list[ModuleStatus])
+async def list_modules(
+    guild_id: str, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)
+):
     """List all available modules with their current status for a guild"""
     modules_list = []
-    
+
     for key, info in MODULES.items():
         config = await get_guild_module_config(db, guild_id, key)
-        modules_list.append(ModuleStatus(
-            module_key=key,
-            display_name=info["display_name"],
-            description=info["description"],
-            icon=info["icon"],
-            category=info["category"],
-            enabled=config["enabled"],
-            risk_level=info["risk_level"],
-            has_draft=config["draft_config"] is not None,
-            last_updated=config["updated_at"]
-        ))
-    
+        modules_list.append(
+            ModuleStatus(
+                module_key=key,
+                display_name=info["display_name"],
+                description=info["description"],
+                icon=info["icon"],
+                category=info["category"],
+                enabled=config["enabled"],
+                risk_level=info["risk_level"],
+                has_draft=config["draft_config"] is not None,
+                last_updated=config["updated_at"],
+            )
+        )
+
     return modules_list
 
+
 @router.get("/modules/{module_key}", response_model=ModuleConfig)
-async def get_module_config(guild_id: str, module_key: str, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+async def get_module_config(
+    guild_id: str,
+    module_key: str,
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db),
+):
     """Get detailed configuration for a specific module"""
     if module_key not in MODULES:
         raise HTTPException(status_code=404, detail="Module not found")
-    
+
     config = await get_guild_module_config(db, guild_id, module_key)
-    
+
     return ModuleConfig(
         module_key=module_key,
         enabled=config["enabled"],
         config=config["config"],
         last_updated=config["updated_at"] or datetime.utcnow().isoformat(),
-        updated_by={"id": config["updated_by"], "username": "User"} if config["updated_by"] else None,
+        updated_by={"id": config["updated_by"], "username": "User"}
+        if config["updated_by"]
+        else None,
         version=config["version"],
         has_draft=config["draft_config"] is not None,
-        draft_config=config["draft_config"]
+        draft_config=config["draft_config"],
     )
+
 
 @router.put("/modules/{module_key}", response_model=ModuleUpdateResponse)
 async def update_module_config(
-    guild_id: str, 
-    module_key: str, 
+    guild_id: str,
+    module_key: str,
     body: ModuleUpdateRequest,
-    user: User = Depends(get_me), 
-    db: AsyncSession = Depends(get_db)
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db),
 ):
     """Update module configuration"""
     if module_key not in MODULES:
         raise HTTPException(status_code=404, detail="Module not found")
-    
+
     # Get current config
     current = await get_guild_module_config(db, guild_id, module_key)
-    
+
     # Merge config
     enabled = body.enabled if body.enabled is not None else current["enabled"]
     config = {**current["config"], **(body.config or {})}
-    
+
     # Save
     version = await save_guild_module_config(
-        db, guild_id, module_key, enabled, config, 
-        user.discord_id, body.publish
+        db, guild_id, module_key, enabled, config, user.discord_id, body.publish
     )
-    
+
     # Notify bot if published
     bot_notified = False
     if body.publish:
         bot_notified = await notify_bot(guild_id, module_key, "update")
-    
-    logger.info(f"Module {module_key} updated for guild {guild_id}", 
-                version=version, published=body.publish, user=user.discord_id)
-    
+
+    logger.info(
+        f"Module {module_key} updated for guild {guild_id}",
+        version=version,
+        published=body.publish,
+        user=user.discord_id,
+    )
+
     return ModuleUpdateResponse(
         status="success",
         version=version,
         published=body.publish,
-        bot_notified=bot_notified
+        bot_notified=bot_notified,
     )
+
 
 @router.post("/modules/{module_key}/test", response_model=ModuleTestResponse)
 async def test_module(
@@ -412,100 +564,116 @@ async def test_module(
     module_key: str,
     body: ModuleTestRequest,
     user: User = Depends(get_me),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Test/simulate module behavior without actually triggering actions"""
     if module_key not in MODULES:
         raise HTTPException(status_code=404, detail="Module not found")
-    
+
     config = await get_guild_module_config(db, guild_id, module_key)
     rules_matched = []
     would_trigger = False
-    
+
     # AutoMod simulation
     if module_key == "automod" and body.content:
         cfg = config["config"]
-        
+
         # Check profanity
         if cfg.get("profanity", {}).get("enabled"):
             bad_words = cfg["profanity"].get("customWords", [])
             for word in bad_words:
                 if word.lower() in body.content.lower():
-                    rules_matched.append({
-                        "rule": "profanity",
-                        "reason": f"Yasaklı kelime bulundu: {word}",
-                        "action": cfg["profanity"].get("action", "delete")
-                    })
+                    rules_matched.append(
+                        {
+                            "rule": "profanity",
+                            "reason": f"Yasaklı kelime bulundu: {word}",
+                            "action": cfg["profanity"].get("action", "delete"),
+                        }
+                    )
                     would_trigger = True
                     break
-        
+
         # Check links
         if cfg.get("links", {}).get("enabled"):
             import re
-            url_pattern = r'https?://[^\s]+'
+
+            url_pattern = r"https?://[^\s]+"
             urls = re.findall(url_pattern, body.content)
             whitelist = cfg["links"].get("whitelist", [])
             for url in urls:
                 is_allowed = any(domain in url for domain in whitelist)
                 if not is_allowed:
-                    rules_matched.append({
-                        "rule": "links",
-                        "reason": f"İzin verilmeyen link: {url}",
-                        "action": cfg["links"].get("action", "delete")
-                    })
+                    rules_matched.append(
+                        {
+                            "rule": "links",
+                            "reason": f"İzin verilmeyen link: {url}",
+                            "action": cfg["links"].get("action", "delete"),
+                        }
+                    )
                     would_trigger = True
                     break
-        
+
         # Check caps
-        if cfg.get("caps", {}).get("enabled") and len(body.content) >= cfg["caps"].get("minLength", 10):
+        if cfg.get("caps", {}).get("enabled") and len(body.content) >= cfg["caps"].get(
+            "minLength", 10
+        ):
             upper_count = sum(1 for c in body.content if c.isupper())
             total_alpha = sum(1 for c in body.content if c.isalpha())
             if total_alpha > 0:
                 caps_ratio = (upper_count / total_alpha) * 100
                 if caps_ratio >= cfg["caps"].get("threshold", 70):
-                    rules_matched.append({
-                        "rule": "caps",
-                        "reason": f"Aşırı büyük harf: {caps_ratio:.0f}%",
-                        "action": cfg["caps"].get("action", "warn")
-                    })
+                    rules_matched.append(
+                        {
+                            "rule": "caps",
+                            "reason": f"Aşırı büyük harf: {caps_ratio:.0f}%",
+                            "action": cfg["caps"].get("action", "warn"),
+                        }
+                    )
                     would_trigger = True
-    
+
     return ModuleTestResponse(
         would_trigger=would_trigger,
         rules_matched=rules_matched,
         preview_response={
             "type": "embed",
             "title": "⚠️ Kural İhlali" if would_trigger else "✅ Uygun",
-            "description": rules_matched[0]["reason"] if rules_matched else "Bu mesaj kurallara uygundur."
-        } if body.content else None
+            "description": rules_matched[0]["reason"]
+            if rules_matched
+            else "Bu mesaj kurallara uygundur.",
+        }
+        if body.content
+        else None,
     )
 
+
 @router.get("/metrics", response_model=GuildMetrics)
-async def get_guild_metrics(guild_id: str, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+async def get_guild_metrics(
+    guild_id: str, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)
+):
     """Get guild statistics and metrics from database"""
     from datetime import timedelta
-    
+
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start = today_start - timedelta(days=7)
-    day_ago = now - timedelta(hours=24)
-    
+    week_start = today_start - timedelta(days=7)  # noqa: F841 - may be used later
+
     members_data = {"total": 0, "online": 0, "new_24h": 0}
     messages_data = {"today": 0, "week": 0}
     moderation_data = {"actions_today": 0, "warnings_active": 0}
     leveling_data = {"active_users": 0, "xp_today": 0}
-    
+
     try:
         # Get member stats from Redis cache (set by bot)
         r = await get_redis()
         cached_members = await r.get(f"guild:stats:{guild_id}:members")
         if cached_members:
             import json as json_lib
+
             members_data = json_lib.loads(cached_members)
         await r.aclose()
     except Exception as e:
         logger.warning(f"Failed to get cached member stats: {e}")
-    
+
     try:
         # Get moderation actions today from moderation_cases table
         result = await db.execute(
@@ -513,25 +681,25 @@ async def get_guild_metrics(guild_id: str, user: User = Depends(get_me), db: Asy
                 SELECT COUNT(*) FROM moderation_cases 
                 WHERE guild_id = :gid AND created_at >= :today
             """),
-            {"gid": guild_id, "today": today_start}
+            {"gid": guild_id, "today": today_start},
         )
         row = result.fetchone()
         moderation_data["actions_today"] = row[0] if row else 0
-        
+
         # Get active warnings count from warnings table
         result = await db.execute(
             text("""
                 SELECT COUNT(*) FROM warnings 
                 WHERE guild_id = :gid
             """),
-            {"gid": guild_id}
+            {"gid": guild_id},
         )
         row = result.fetchone()
         moderation_data["warnings_active"] = row[0] if row else 0
-        
+
     except Exception as e:
         logger.warning(f"Failed to query moderation stats: {e}")
-    
+
     try:
         # Get message stats from audit_logs (message events)
         result = await db.execute(
@@ -539,24 +707,24 @@ async def get_guild_metrics(guild_id: str, user: User = Depends(get_me), db: Asy
                 SELECT COUNT(*) FROM audit_logs 
                 WHERE guild_id = :gid AND created_at >= :today
             """),
-            {"gid": guild_id, "today": today_start}
+            {"gid": guild_id, "today": today_start},
         )
         row = result.fetchone()
         messages_data["today"] = row[0] if row else 0
-        
+
         result = await db.execute(
             text("""
                 SELECT COUNT(*) FROM audit_logs 
                 WHERE guild_id = :gid AND created_at >= :week
             """),
-            {"gid": guild_id, "week": week_start}
+            {"gid": guild_id, "week": week_start},
         )
         row = result.fetchone()
         messages_data["week"] = row[0] if row else 0
-        
+
     except Exception as e:
         logger.warning(f"Failed to query message stats: {e}")
-    
+
     try:
         # Get leveling stats from user_levels table if exists
         result = await db.execute(
@@ -564,29 +732,41 @@ async def get_guild_metrics(guild_id: str, user: User = Depends(get_me), db: Asy
                 SELECT COUNT(*) FROM user_levels 
                 WHERE guild_id = :gid
             """),
-            {"gid": guild_id}
+            {"gid": guild_id},
         )
         row = result.fetchone()
         leveling_data["active_users"] = row[0] if row else 0
-    except Exception as e:
+    except Exception:  # Table might not exist
         # Table might not exist
         pass
-    
+
     return GuildMetrics(
         members=members_data,
         messages=messages_data,
         moderation=moderation_data,
-        leveling=leveling_data
+        leveling=leveling_data,
     )
 
+
 @router.get("/audit-logs")
-async def get_audit_logs(guild_id: str, page: int = 1, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+async def get_audit_logs(
+    guild_id: str,
+    page: int = 1,
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db),
+):
     """Get panel audit logs for the guild"""
     # Would query panel_audit_logs table
     return {"items": [], "total": 0, "page": page, "pages": 1}
 
+
 @router.get("/bot-events")
-async def get_bot_events(guild_id: str, page: int = 1, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+async def get_bot_events(
+    guild_id: str,
+    page: int = 1,
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db),
+):
     """Get bot audit events for the guild"""
     # Would query bot_audit_events table
     return {"items": [], "total": 0, "page": page, "pages": 1}
@@ -596,14 +776,17 @@ async def get_bot_events(guild_id: str, page: int = 1, user: User = Depends(get_
 # System Status & Recent Activities
 # ============================================
 
+
 class ServiceStatus(BaseModel):
     name: str
     status: str  # online, degraded, offline
-    latency_ms: Optional[int] = None
+    latency_ms: int | None = None
+
 
 class SystemStatusResponse(BaseModel):
-    services: List[ServiceStatus]
+    services: list[ServiceStatus]
     timestamp: str
+
 
 class RecentActivity(BaseModel):
     id: int
@@ -614,30 +797,41 @@ class RecentActivity(BaseModel):
     type: str  # success, warning, info, error
     created_at: str
 
+
 class RecentActivitiesResponse(BaseModel):
-    items: List[RecentActivity]
+    items: list[RecentActivity]
     total: int
 
 
 @router.get("/system-status", response_model=SystemStatusResponse)
-async def get_system_status(guild_id: str, request: Request, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+async def get_system_status(
+    guild_id: str,
+    request: Request,
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db),
+):
     """Get real-time system status for all services"""
     import time
+
     services = []
-    
+
     # API Status (always online if this endpoint responds)
     services.append(ServiceStatus(name="API", status="online", latency_ms=1))
-    
+
     # Database Status
     try:
         start = time.time()
         await db.execute(text("SELECT 1"))
         latency = int((time.time() - start) * 1000)
-        services.append(ServiceStatus(name="Database", status="online", latency_ms=latency))
+        services.append(
+            ServiceStatus(name="Database", status="online", latency_ms=latency)
+        )
     except Exception as e:
         logger.error(f"DB health check failed: {e}")
-        services.append(ServiceStatus(name="Database", status="offline", latency_ms=None))
-    
+        services.append(
+            ServiceStatus(name="Database", status="offline", latency_ms=None)
+        )
+
     # Redis/Cache Status
     try:
         r = await get_redis()
@@ -645,11 +839,13 @@ async def get_system_status(guild_id: str, request: Request, user: User = Depend
         await r.ping()
         latency = int((time.time() - start) * 1000)
         await r.aclose()
-        services.append(ServiceStatus(name="Cache", status="online", latency_ms=latency))
+        services.append(
+            ServiceStatus(name="Cache", status="online", latency_ms=latency)
+        )
     except Exception as e:
         logger.error(f"Redis health check failed: {e}")
         services.append(ServiceStatus(name="Cache", status="offline", latency_ms=None))
-    
+
     # Bot Status - Check via Redis pub/sub heartbeat or guild cache
     try:
         r = await get_redis()
@@ -659,27 +855,37 @@ async def get_system_status(guild_id: str, request: Request, user: User = Depend
             # Check if heartbeat is recent (within last 60 seconds)
             last_beat = datetime.fromisoformat(bot_heartbeat.decode())
             if (datetime.utcnow() - last_beat).total_seconds() < 60:
-                services.insert(0, ServiceStatus(name="Bot", status="online", latency_ms=None))
+                services.insert(
+                    0, ServiceStatus(name="Bot", status="online", latency_ms=None)
+                )
             else:
-                services.insert(0, ServiceStatus(name="Bot", status="degraded", latency_ms=None))
+                services.insert(
+                    0, ServiceStatus(name="Bot", status="degraded", latency_ms=None)
+                )
         else:
             # No heartbeat found, but bot might still be online - assume online for now
-            services.insert(0, ServiceStatus(name="Bot", status="online", latency_ms=None))
+            services.insert(
+                0, ServiceStatus(name="Bot", status="online", latency_ms=None)
+            )
     except Exception as e:
         logger.error(f"Bot status check failed: {e}")
         services.insert(0, ServiceStatus(name="Bot", status="online", latency_ms=None))
-    
+
     return SystemStatusResponse(
-        services=services,
-        timestamp=datetime.utcnow().isoformat()
+        services=services, timestamp=datetime.utcnow().isoformat()
     )
 
 
 @router.get("/recent-activities", response_model=RecentActivitiesResponse)
-async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
+async def get_recent_activities(
+    guild_id: str,
+    limit: int = 10,
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db),
+):
     """Get recent bot and panel activities for the guild"""
     activities = []
-    
+
     # Try to fetch from audit_logs table (populated by bot's AuditLogging cog)
     try:
         result = await db.execute(
@@ -690,13 +896,13 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
                 ORDER BY created_at DESC 
                 LIMIT :limit
             """),
-            {"gid": guild_id, "limit": limit}
+            {"gid": guild_id, "limit": limit},
         )
         rows = result.fetchall()
-        
+
         for row in rows:
             log_id, user_id, action, target, changes, created_at = row
-            
+
             # Map action types to icons and display info
             action_map = {
                 "message_delete": ("MessageSquare", "Mesaj silindi", "warning"),
@@ -709,9 +915,11 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
                 "voice_join": ("Activity", "Ses kanalına katıldı", "info"),
                 "voice_leave": ("Activity", "Ses kanalından ayrıldı", "info"),
             }
-            
-            icon, title, activity_type = action_map.get(action, ("Activity", action, "info"))
-            
+
+            icon, title, activity_type = action_map.get(
+                action, ("Activity", action, "info")
+            )
+
             # Calculate relative time
             if created_at:
                 delta = datetime.utcnow() - created_at
@@ -725,7 +933,7 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
                     time_str = f"{int(delta.total_seconds() / 86400)} gün önce"
             else:
                 time_str = "Bilinmiyor"
-            
+
             # Build description
             description = f"Hedef: {target}" if target else ""
             if changes:
@@ -733,19 +941,21 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
                     changes = json.loads(changes)
                 if isinstance(changes, dict) and changes.get("description"):
                     description = changes.get("description", "")[:100]
-            
-            activities.append(RecentActivity(
-                id=log_id,
-                icon=icon,
-                title=title,
-                description=description[:100] if description else "",
-                time=time_str,
-                type=activity_type,
-                created_at=created_at.isoformat() if created_at else ""
-            ))
+
+            activities.append(
+                RecentActivity(
+                    id=log_id,
+                    icon=icon,
+                    title=title,
+                    description=description[:100] if description else "",
+                    time=time_str,
+                    type=activity_type,
+                    created_at=created_at.isoformat() if created_at else "",
+                )
+            )
     except Exception as e:
         logger.warning(f"Failed to fetch from audit_logs: {e}")
-    
+
     # If no audit logs, try moderation_cases as fallback
     if not activities:
         try:
@@ -757,13 +967,13 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
                     ORDER BY created_at DESC 
                     LIMIT :limit
                 """),
-                {"gid": guild_id, "limit": limit}
+                {"gid": guild_id, "limit": limit},
             )
             rows = result.fetchall()
-            
+
             for row in rows:
                 case_id, action_type, user_id, reason, created_at = row
-                
+
                 action_map = {
                     "WARN": ("AlertTriangle", "Uyarı verildi", "warning"),
                     "MUTE": ("VolumeX", "Susturma uygulandı", "warning"),
@@ -771,9 +981,11 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
                     "BAN": ("Ban", "Yasaklama uygulandı", "error"),
                     "KARA": ("Shield", "Kara listeye eklendi", "error"),
                 }
-                
-                icon, title, activity_type = action_map.get(action_type, ("Activity", action_type, "info"))
-                
+
+                icon, title, activity_type = action_map.get(
+                    action_type, ("Activity", action_type, "info")
+                )
+
                 if created_at:
                     delta = datetime.utcnow() - created_at
                     if delta.total_seconds() < 60:
@@ -786,18 +998,19 @@ async def get_recent_activities(guild_id: str, limit: int = 10, user: User = Dep
                         time_str = f"{int(delta.total_seconds() / 86400)} gün önce"
                 else:
                     time_str = "Bilinmiyor"
-                
-                activities.append(RecentActivity(
-                    id=case_id,
-                    icon=icon,
-                    title=title,
-                    description=reason[:100] if reason else "",
-                    time=time_str,
-                    type=activity_type,
-                    created_at=created_at.isoformat() if created_at else ""
-                ))
+
+                activities.append(
+                    RecentActivity(
+                        id=case_id,
+                        icon=icon,
+                        title=title,
+                        description=reason[:100] if reason else "",
+                        time=time_str,
+                        type=activity_type,
+                        created_at=created_at.isoformat() if created_at else "",
+                    )
+                )
         except Exception as e:
             logger.warning(f"Failed to fetch from moderation_cases: {e}")
-    
-    return RecentActivitiesResponse(items=activities, total=len(activities))
 
+    return RecentActivitiesResponse(items=activities, total=len(activities))

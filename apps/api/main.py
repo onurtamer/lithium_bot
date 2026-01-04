@@ -1,28 +1,39 @@
+"""
+Lithium Bot API - Main Application
+"""
+
+# ruff: noqa: E402
 import os
 import sys
+
 from dotenv import load_dotenv
 
-# Load env vars before anything else
+# Load env vars before anything else - must be before other imports
 load_dotenv()
 
-from fastapi import FastAPI, Request, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from lithium_core.database.session import get_db
-from fastapi.middleware.cors import CORSMiddleware
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Add project root to path - must be before local imports
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
-from apps.api.router import auth, guilds, modules, guilds_v2
-
+import redis.asyncio as redis_async
 import structlog
+from fastapi import Depends, FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.api.router import auth, guilds, guilds_v2, modules
+from lithium_core.database.session import get_db
 
 # Structlog Config
 structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     logger_factory=structlog.PrintLoggerFactory(),
 )
@@ -34,9 +45,27 @@ app = FastAPI(title="Lithium Bot API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# CORS - Dynamic origin list
+cors_origins: list[str] = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+]
+
+# Add production frontend URL
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    cors_origins.append(frontend_url)
+
+# Add production domain
+production_domain = os.getenv("PRODUCTION_DOMAIN", "https://lithiumbot.xyz")
+if production_domain not in cors_origins:
+    cors_origins.append(production_domain)
+    cors_origins.append(production_domain.replace("https://", "http://"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:5173"), "http://localhost:3000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,37 +76,39 @@ app.include_router(guilds.router)
 app.include_router(modules.router)
 app.include_router(guilds_v2.router)
 
-@app.get("/health")
+
+@app.get("/health", response_model=None)
 @limiter.limit("5/minute")
 async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
-    health_status = {"api": "ok", "db": "unknown", "redis": "unknown"}
-    
+    """Health check endpoint"""
+    health_status: dict[str, str] = {"api": "ok", "db": "unknown", "redis": "unknown"}
+
     # DB Check
     try:
-        from sqlalchemy import text
         await db.execute(text("SELECT 1"))
         health_status["db"] = "ok"
     except Exception as e:
         logger.error(f"Healthcheck: DB connection failed: {e}")
         health_status["db"] = "failed"
-    
+
     # Redis Check
     try:
-        import redis.asyncio as redis_async
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         r = redis_async.from_url(redis_url)
         if await r.ping():
             health_status["redis"] = "ok"
+        await r.aclose()
     except Exception as e:
         logger.error(f"Healthcheck: Redis connection failed: {e}")
         health_status["redis"] = "failed"
 
     if "failed" in health_status.values():
-        from fastapi import Response
         return Response(content="Degraded", status_code=503)
-        
+
     return health_status
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

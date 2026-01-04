@@ -29,88 +29,121 @@ async def login_discord():
         f"https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&permissions=8&response_type=code&redirect_uri={DISCORD_REDIRECT_URI}&integration_type=0&scope=email+guilds+identify+guilds.members.read+applications.commands+bot"
     )
 
+
 @router.get("/discord/callback")
-async def discord_callback(code: str, response: Response, db: AsyncSession = Depends(get_db)):
+async def discord_callback(
+    code: str, response: Response, db: AsyncSession = Depends(get_db)
+):
     async with httpx.AsyncClient() as client:
-        token_res = await client.post("https://discord.com/api/oauth2/token", data={
-            "client_id": DISCORD_CLIENT_ID,
-            "client_secret": DISCORD_CLIENT_SECRET,
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": DISCORD_REDIRECT_URI
-        }, headers={"Content-Type": "application/x-www-form-urlencoded"})
-        
+        token_res = await client.post(
+            "https://discord.com/api/oauth2/token",
+            data={
+                "client_id": DISCORD_CLIENT_ID,
+                "client_secret": DISCORD_CLIENT_SECRET,
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": DISCORD_REDIRECT_URI,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
         token_data = token_res.json()
         if "access_token" not in token_data:
             raise HTTPException(status_code=400, detail="Invalid code")
-        
-        user_res = await client.get("https://discord.com/api/users/@me", headers={
-            "Authorization": f"Bearer {token_data['access_token']}"
-        })
+
+        user_res = await client.get(
+            "https://discord.com/api/users/@me",
+            headers={"Authorization": f"Bearer {token_data['access_token']}"},
+        )
         user_data = user_res.json()
-        
+
         # Save User
         discord_id = user_data["id"]
         result = await db.execute(select(User).where(User.discord_id == discord_id))
         user = result.scalar_one_or_none()
-        
+
         if not user:
-            user = User(discord_id=discord_id, username=user_data["username"], avatar_url=user_data["avatar"])
+            user = User(
+                discord_id=discord_id,
+                username=user_data["username"],
+                avatar_url=user_data["avatar"],
+            )
             db.add(user)
         else:
             user.username = user_data["username"]
             user.avatar_url = user_data["avatar"]
-            
+
         await db.commit()
         await db.refresh(user)
 
         # Update/Create OAuth Session
-        session_result = await db.execute(select(OAuthSession).where(OAuthSession.user_id == user.id))
+        session_result = await db.execute(
+            select(OAuthSession).where(OAuthSession.user_id == user.id)
+        )
         oauth_session = session_result.scalar_one_or_none()
-        
-        expire_at_iso = (datetime.utcnow() + timedelta(seconds=token_data["expires_in"])).isoformat()
-        
+
+        expire_at_iso = (
+            datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+        ).isoformat()
+
         if not oauth_session:
             oauth_session = OAuthSession(
-                user_id=user.id, 
-                access_token=token_data["access_token"], 
+                user_id=user.id,
+                access_token=token_data["access_token"],
                 refresh_token=token_data["refresh_token"],
-                expires_at=expire_at_iso
+                expires_at=expire_at_iso,
             )
             db.add(oauth_session)
         else:
             oauth_session.access_token = token_data["access_token"]
             oauth_session.refresh_token = token_data["refresh_token"]
             oauth_session.expires_at = expire_at_iso
-        
+
         await db.commit()
 
         # Create JWT
-        access_token_expires = timedelta(minutes=60 * 24 * 7) # 7 days
+        access_token_expires = timedelta(minutes=60 * 24 * 7)  # 7 days
         expire = datetime.utcnow() + access_token_expires
-        encoded_jwt = jwt.encode({"sub": str(user.id), "discord_id": discord_id, "exp": expire}, JWT_SECRET, algorithm=ALGORITHM)
-        
-        response = RedirectResponse(url=f"{os.getenv('FRONTEND_URL')}/app")
-        response.set_cookie(key="access_token", value=encoded_jwt, httponly=True, samesite='lax', secure=False) # Secure=True in prod
+        encoded_jwt = jwt.encode(
+            {"sub": str(user.id), "discord_id": discord_id, "exp": expire},
+            JWT_SECRET,
+            algorithm=ALGORITHM,
+        )
+
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        is_production = os.getenv("ENVIRONMENT", "development") == "production"
+
+        response = RedirectResponse(url=f"{frontend_url}/app")
+        response.set_cookie(
+            key="access_token",
+            value=encoded_jwt,
+            httponly=True,
+            samesite="lax",
+            secure=is_production,  # True in production (HTTPS)
+            max_age=60 * 60 * 24 * 7,  # 7 days
+        )
         return response
 
 
 @router.post("/key")
-async def login_with_key(request: KeyLoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+async def login_with_key(
+    request: KeyLoginRequest, response: Response, db: AsyncSession = Depends(get_db)
+):
     """Login using a 30-character access key generated by /key command"""
-    
+
     # Find the key
     result = await db.execute(
         select(AccessKey).where(
-            AccessKey.key == request.key,
-            AccessKey.is_active == True
+            AccessKey.key == request.key, AccessKey.is_active.is_(True)
         )
     )
     access_key = result.scalar_one_or_none()
-    
+
     if not access_key:
-        raise HTTPException(status_code=401, detail="Geçersiz veya süresi dolmuş anahtar")
-    
+        raise HTTPException(
+            status_code=401, detail="Geçersiz veya süresi dolmuş anahtar"
+        )
+
     # Check expiration
     if access_key.expires_at:
         expires_at = datetime.fromisoformat(access_key.expires_at)
@@ -118,34 +151,39 @@ async def login_with_key(request: KeyLoginRequest, response: Response, db: Async
             access_key.is_active = False
             await db.commit()
             raise HTTPException(status_code=401, detail="Anahtarın süresi dolmuş")
-    
+
     # Create JWT with guild access
     access_token_expires = timedelta(hours=24)
     expire = datetime.utcnow() + access_token_expires
-    encoded_jwt = jwt.encode({
-        "sub": f"key:{access_key.id}",
-        "guild_id": access_key.guild_discord_id,
-        "key_auth": True,
-        "exp": expire
-    }, JWT_SECRET, algorithm=ALGORITHM)
-    
+    encoded_jwt = jwt.encode(
+        {
+            "sub": f"key:{access_key.id}",
+            "guild_id": access_key.guild_discord_id,
+            "key_auth": True,
+            "exp": expire,
+        },
+        JWT_SECRET,
+        algorithm=ALGORITHM,
+    )
+
     # Return the guild ID for redirect
     return {
         "success": True,
         "guild_id": access_key.guild_discord_id,
-        "token": encoded_jwt
+        "token": encoded_jwt,
     }
 
 
 @router.get("/me")
-async def get_me(request: Request, db: AsyncSession = Depends(get_db)):
+async def get_me_route(request: Request, db: AsyncSession = Depends(get_db)):
+    """API endpoint to get current user info (route handler version)"""
     token = request.cookies.get("access_token")
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-        
+
         # Check if this is a key-based auth
         if payload.get("key_auth"):
             return {
@@ -154,18 +192,19 @@ async def get_me(request: Request, db: AsyncSession = Depends(get_db)):
                 "username": "Key Access",
                 "avatar_url": None,
                 "key_auth": True,
-                "guild_id": payload.get("guild_id")
+                "guild_id": payload.get("guild_id"),
             }
-        
+
         user_id = payload.get("sub")
-        
+
         result = await db.execute(select(User).where(User.id == int(user_id)))
         user = result.scalar_one_or_none()
         if not user:
-             raise HTTPException(status_code=401)
+            raise HTTPException(status_code=401)
         return user
-    except:
+    except Exception:
         raise HTTPException(status_code=401)
+
 
 @router.post("/logout")
 async def logout(response: Response):
