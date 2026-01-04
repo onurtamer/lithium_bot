@@ -146,6 +146,7 @@ class LithiumBot(commands.Bot):
         logger.info("------")
         self.bg_task = self.loop.create_task(self.redis_listener())
         self.stats_task = self.loop.create_task(self.guild_stats_updater())
+        self.metrics_task = self.loop.create_task(self.metrics_saver())
 
     async def on_message(self, message):
         """Track message counts per guild"""
@@ -251,6 +252,51 @@ class LithiumBot(commands.Bot):
             # Update every 10 seconds for heartbeat
             await asyncio.sleep(10)
 
+    async def metrics_saver(self):
+        """Background task to save message metrics from Redis to DB (hourly)"""
+        import redis.asyncio as redis_async
+        from lithium_core.database.session import AsyncSessionLocal
+        from sqlalchemy import text
+        from datetime import date
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        
+        await self.wait_until_ready()
+        logger.info("Metrics saver started.")
+        
+        while not self.is_closed():
+            try:
+                r = redis_async.from_url(redis_url)
+                today = date.today().isoformat()
+                
+                for guild in self.guilds:
+                    try:
+                        # Get today's message count from Redis
+                        msg_key = f"guild:stats:{guild.id}:messages:today"
+                        msg_count = await r.get(msg_key)
+                        msg_count = int(msg_count) if msg_count else 0
+                        
+                        if msg_count > 0:
+                            # Upsert to DB
+                            async with AsyncSessionLocal() as db:
+                                await db.execute(text("""
+                                    INSERT INTO message_metrics_daily (guild_id, date, message_count, unique_users)
+                                    VALUES (:gid, :date, :count, 0)
+                                    ON CONFLICT (guild_id, date) DO UPDATE SET
+                                        message_count = EXCLUDED.message_count
+                                """), {"gid": str(guild.id), "date": today, "count": msg_count})
+                                await db.commit()
+                    except Exception as e:
+                        logger.warning(f"Failed to save metrics for guild {guild.id}: {e}")
+                
+                await r.aclose()
+                
+            except Exception as e:
+                logger.error(f"Metrics saver error: {e}")
+            
+            # Save every hour
+            await asyncio.sleep(3600)
+
     async def redis_listener(self):
         import redis.asyncio as redis_async
         import json
@@ -258,7 +304,7 @@ class LithiumBot(commands.Bot):
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         r = redis_async.from_url(redis_url)
         pubsub = r.pubsub()
-        await pubsub.subscribe("guild_config_changed")
+        await pubsub.subscribe("guild_config_changed", "ticket_action")
 
         logger.info("Redis Pub/Sub listener started.")
 
@@ -268,6 +314,7 @@ class LithiumBot(commands.Bot):
                     data = json.loads(message["data"])
                     logger.info(f"Received Redis command: {data}")
 
+                    # Handle DIAGNOSTIC action
                     if data.get("action") == "DIAGNOSTIC":
                         guild_id = int(data["guild_id"])
                         request_id = data["request_id"]
@@ -306,6 +353,43 @@ class LithiumBot(commands.Bot):
                         res_key = f"diag_res:{request_id}"
                         await r.set(res_key, json.dumps(diag_res), ex=60)
                         logger.info(f"Sent diagnostic response for {guild_id}")
+                    
+                    # Handle ticket actions from web
+                    elif data.get("action") == "claim":
+                        guild_id = int(data["guild_id"])
+                        channel_id = data.get("channel_id")
+                        claimed_by = data.get("claimed_by")
+                        if channel_id:
+                            channel = self.get_channel(int(channel_id))
+                            if channel:
+                                await channel.send(f"✅ Ticket claimed by <@{claimed_by}> (via Dashboard)")
+                    
+                    elif data.get("action") == "close":
+                        guild_id = int(data["guild_id"])
+                        channel_id = data.get("channel_id")
+                        if channel_id:
+                            channel = self.get_channel(int(channel_id))
+                            if channel:
+                                await channel.send("🔒 Ticket closed from Dashboard. Deleting in 5 seconds...")
+                                await asyncio.sleep(5)
+                                try:
+                                    await channel.delete()
+                                except Exception as e:
+                                    logger.warning(f"Failed to delete ticket channel: {e}")
+                    
+                    elif data.get("action") == "send_message":
+                        channel_id = data.get("channel_id")
+                        content = data.get("content")
+                        sender_name = data.get("sender_name", "Staff")
+                        if channel_id and content:
+                            channel = self.get_channel(int(channel_id))
+                            if channel:
+                                embed = discord.Embed(
+                                    description=content,
+                                    color=discord.Color.blue()
+                                )
+                                embed.set_author(name=f"{sender_name} (Dashboard)")
+                                await channel.send(embed=embed)
                 except Exception as e:
                     logger.error(f"Error processing Redis message: {e}")
 

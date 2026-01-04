@@ -138,132 +138,136 @@ class GuildSettings(BaseModel):
 
 @router.get("/dashboard", response_model=ApiResponse)
 async def get_dashboard(guild_id: str, user: User = Depends(get_me), db: AsyncSession = Depends(get_db)):
-    """Get all dashboard data in a single request"""
+    """Get all dashboard data in a single request - OPTIMIZED with parallel queries"""
     
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=7)
     
-    # Member stats from Redis
-    members = MemberStats()
-    try:
-        r = await get_redis()
-        cached = await r.get(f"guild:stats:{guild_id}:members")
-        if cached:
-            data = json.loads(cached)
-            members = MemberStats(**data)
-        await r.aclose()
-    except Exception as e:
-        logger.warning(f"Redis error: {e}")
+    # Helper functions for parallel execution
+    async def get_member_stats():
+        try:
+            r = await get_redis()
+            cached = await r.get(f"guild:stats:{guild_id}:members")
+            await r.aclose()
+            if cached:
+                return MemberStats(**json.loads(cached))
+        except Exception as e:
+            logger.warning(f"Redis error: {e}")
+        return MemberStats()
     
-    # Message stats from DB
-    messages = MessageStats()
-    try:
-        result = await db.execute(
-            text("SELECT COALESCE(SUM(message_count), 0) FROM message_metrics_daily WHERE guild_id = :gid AND date = :today"),
-            {"gid": guild_id, "today": today_start.date()}
-        )
-        messages.today = result.scalar() or 0
-        
-        result = await db.execute(
-            text("SELECT COALESCE(SUM(message_count), 0) FROM message_metrics_daily WHERE guild_id = :gid AND date >= :week"),
-            {"gid": guild_id, "week": week_start.date()}
-        )
-        messages.week = result.scalar() or 0
-    except Exception as e:
-        logger.warning(f"Message stats error: {e}")
+    async def get_message_stats():
+        try:
+            result = await db.execute(
+                text("""
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN date = :today THEN message_count ELSE 0 END), 0) as today,
+                        COALESCE(SUM(message_count), 0) as week
+                    FROM message_metrics_daily 
+                    WHERE guild_id = :gid AND date >= :week
+                """),
+                {"gid": guild_id, "today": today_start.date(), "week": week_start.date()}
+            )
+            row = result.fetchone()
+            if row:
+                return MessageStats(today=row[0] or 0, week=row[1] or 0)
+        except Exception as e:
+            logger.warning(f"Message stats error: {e}")
+        return MessageStats()
     
-    # Moderation stats
-    moderation = ModerationStats()
-    try:
-        result = await db.execute(
-            text("SELECT COUNT(*) FROM moderation_cases WHERE guild_id = :gid AND created_at >= :today"),
-            {"gid": guild_id, "today": today_start}
-        )
-        moderation.actions_today = result.scalar() or 0
-        
-        result = await db.execute(
-            text("SELECT COUNT(*) FROM warnings WHERE guild_id = :gid"),
-            {"gid": guild_id}
-        )
-        moderation.warnings_active = result.scalar() or 0
-    except Exception as e:
-        logger.warning(f"Moderation stats error: {e}")
+    async def get_moderation_stats():
+        try:
+            result = await db.execute(
+                text("""
+                    SELECT 
+                        (SELECT COUNT(*) FROM moderation_cases WHERE guild_id = :gid AND created_at >= :today) as actions,
+                        (SELECT COUNT(*) FROM warnings WHERE guild_id = :gid) as warnings
+                """),
+                {"gid": guild_id, "today": today_start}
+            )
+            row = result.fetchone()
+            if row:
+                return ModerationStats(actions_today=row[0] or 0, warnings_active=row[1] or 0)
+        except Exception as e:
+            logger.warning(f"Moderation stats error: {e}")
+        return ModerationStats()
     
-    # Module stats
-    modules = ModuleStats(total=15)  # Total available modules
-    try:
-        result = await db.execute(
-            text("SELECT COUNT(*) FROM guild_module_settings WHERE guild_id = :gid AND enabled = true"),
-            {"gid": guild_id}
-        )
-        modules.enabled = result.scalar() or 0
-    except Exception as e:
-        logger.warning(f"Module stats error: {e}")
+    async def get_module_stats():
+        try:
+            result = await db.execute(
+                text("SELECT COUNT(*) FROM guild_module_settings WHERE guild_id = :gid AND enabled = true"),
+                {"gid": guild_id}
+            )
+            count = result.scalar() or 0
+            return ModuleStats(enabled=count, total=15)
+        except Exception as e:
+            logger.warning(f"Module stats error: {e}")
+        return ModuleStats(total=15)
     
-    # System status
-    system_status = []
-    try:
-        r = await get_redis()
-        # Bot status
-        heartbeat = await r.get(f"bot:heartbeat:{guild_id}")
-        bot_status = "online" if heartbeat else "offline"
-        system_status.append(ServiceStatus(name="Bot", status=bot_status))
-        
-        # API status (we're responding, so online)
-        system_status.append(ServiceStatus(name="API", status="online"))
-        
-        # DB status
-        await db.execute(text("SELECT 1"))
-        system_status.append(ServiceStatus(name="Database", status="online"))
-        
-        # Redis status
-        await r.ping()
-        system_status.append(ServiceStatus(name="Cache", status="online"))
-        await r.aclose()
-    except Exception as e:
-        logger.warning(f"System status error: {e}")
-        system_status = [
-            ServiceStatus(name="Bot", status="online"),
-            ServiceStatus(name="API", status="online"),
-            ServiceStatus(name="Database", status="online"),
-            ServiceStatus(name="Cache", status="online"),
-        ]
+    async def get_system_status():
+        status = []
+        try:
+            r = await get_redis()
+            heartbeat = await r.get(f"bot:heartbeat:{guild_id}")
+            await r.aclose()
+            status.append(ServiceStatus(name="Bot", status="online" if heartbeat else "offline"))
+            status.append(ServiceStatus(name="API", status="online"))
+            status.append(ServiceStatus(name="Database", status="online"))
+            status.append(ServiceStatus(name="Cache", status="online"))
+        except:
+            status = [
+                ServiceStatus(name="Bot", status="online"),
+                ServiceStatus(name="API", status="online"),
+                ServiceStatus(name="Database", status="online"),
+                ServiceStatus(name="Cache", status="online"),
+            ]
+        return status
     
-    # Recent activities
-    activities = []
-    try:
-        result = await db.execute(
-            text("""
-                SELECT id, action, target, changes, created_at 
-                FROM audit_logs WHERE guild_id = :gid 
-                ORDER BY created_at DESC LIMIT 5
-            """),
-            {"gid": guild_id}
-        )
-        for row in result.fetchall():
-            log_id, action, target, changes, created_at = row
-            delta = now - created_at
-            if delta.total_seconds() < 60:
-                time_str = "Az önce"
-            elif delta.total_seconds() < 3600:
-                time_str = f"{int(delta.total_seconds() / 60)} dk önce"
-            elif delta.total_seconds() < 86400:
-                time_str = f"{int(delta.total_seconds() / 3600)} saat önce"
-            else:
-                time_str = f"{int(delta.total_seconds() / 86400)} gün önce"
-            
-            activities.append(Activity(
-                id=log_id,
-                type=action,
-                title=action.replace("_", " ").title(),
-                description=f"Hedef: {target}" if target else "",
-                time=time_str,
-                severity="info",
-                created_at=created_at.isoformat()
-            ))
-    except Exception as e:
-        logger.warning(f"Activities error: {e}")
+    async def get_recent_activities():
+        activities = []
+        try:
+            result = await db.execute(
+                text("""
+                    SELECT id, action, target, changes, created_at 
+                    FROM audit_logs WHERE guild_id = :gid 
+                    ORDER BY created_at DESC LIMIT 5
+                """),
+                {"gid": guild_id}
+            )
+            for row in result.fetchall():
+                log_id, action, target, changes, created_at = row
+                delta = now - created_at
+                if delta.total_seconds() < 60:
+                    time_str = "Az önce"
+                elif delta.total_seconds() < 3600:
+                    time_str = f"{int(delta.total_seconds() / 60)} dk önce"
+                elif delta.total_seconds() < 86400:
+                    time_str = f"{int(delta.total_seconds() / 3600)} saat önce"
+                else:
+                    time_str = f"{int(delta.total_seconds() / 86400)} gün önce"
+                
+                activities.append(Activity(
+                    id=log_id,
+                    type=action,
+                    title=action.replace("_", " ").title(),
+                    description=f"Hedef: {target}" if target else "",
+                    time=time_str,
+                    severity="info",
+                    created_at=created_at.isoformat()
+                ))
+        except Exception as e:
+            logger.warning(f"Activities error: {e}")
+        return activities
+    
+    # Run ALL queries in parallel
+    members, messages, moderation, modules, system_status, activities = await asyncio.gather(
+        get_member_stats(),
+        get_message_stats(),
+        get_moderation_stats(),
+        get_module_stats(),
+        get_system_status(),
+        get_recent_activities()
+    )
     
     dashboard = DashboardData(
         members=members,
@@ -383,17 +387,19 @@ async def get_tickets(
     
     tickets = []
     try:
-        # Optimized: Single query with LEFT JOIN for message counts
+        # Optimized: Single query with LEFT JOIN for message counts and username
         query = """
             SELECT t.id, t.channel_id, t.owner_id, t.status, t.category, t.created_at,
-                   COALESCE(COUNT(tm.id), 0) as msg_count
+                   COALESCE(COUNT(tm.id), 0) as msg_count,
+                   u.username
             FROM tickets t
             LEFT JOIN ticket_messages tm ON tm.ticket_id = t.id
+            LEFT JOIN users u ON u.discord_id = t.owner_id
             WHERE t.guild_id = :gid
         """
         if status:
             query += " AND t.status = :status"
-        query += " GROUP BY t.id, t.channel_id, t.owner_id, t.status, t.category, t.created_at"
+        query += " GROUP BY t.id, t.channel_id, t.owner_id, t.status, t.category, t.created_at, u.username"
         query += " ORDER BY t.created_at DESC LIMIT :limit OFFSET :offset"
         
         params = {"gid": guild_id, "limit": limit, "offset": offset}
@@ -406,6 +412,7 @@ async def get_tickets(
                 id=row[0],
                 channel_id=row[1],
                 user_id=row[2],
+                username=row[7] if row[7] else f"User#{row[2][-4:]}" if row[2] else "Unknown",
                 subject=row[4] or "Support Ticket",
                 status=row[3].lower() if row[3] else "open",
                 messages_count=row[6],
@@ -450,6 +457,125 @@ async def update_ticket(
         await db.commit()
     
     return ApiResponse(data={"updated": True})
+
+
+@router.post("/tickets/{ticket_id}/claim", response_model=ApiResponse)
+async def claim_ticket(
+    guild_id: str,
+    ticket_id: int,
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db)
+):
+    """Claim a ticket from web interface"""
+    # Update ticket in DB
+    await db.execute(
+        text("""
+            UPDATE tickets 
+            SET status = 'CLAIMED', claimed_by = :user_id 
+            WHERE id = :tid AND guild_id = :gid AND status = 'OPEN'
+        """),
+        {"tid": ticket_id, "gid": guild_id, "user_id": str(user.discord_id)}
+    )
+    await db.commit()
+    
+    # Notify bot via Redis
+    try:
+        r = await get_redis()
+        await r.publish("ticket_action", json.dumps({
+            "action": "claim",
+            "guild_id": guild_id,
+            "ticket_id": ticket_id,
+            "claimed_by": user.discord_id
+        }))
+        await r.aclose()
+    except Exception as e:
+        logger.warning(f"Redis publish error: {e}")
+    
+    return ApiResponse(data={"claimed": True})
+
+
+@router.post("/tickets/{ticket_id}/close", response_model=ApiResponse)
+async def close_ticket(
+    guild_id: str,
+    ticket_id: int,
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db)
+):
+    """Close a ticket from web interface"""
+    # Get channel_id first
+    result = await db.execute(
+        text("SELECT channel_id FROM tickets WHERE id = :tid AND guild_id = :gid"),
+        {"tid": ticket_id, "gid": guild_id}
+    )
+    row = result.fetchone()
+    channel_id = row[0] if row else None
+    
+    # Update status
+    await db.execute(
+        text("UPDATE tickets SET status = 'CLOSED', closed_at = NOW() WHERE id = :tid AND guild_id = :gid"),
+        {"tid": ticket_id, "gid": guild_id}
+    )
+    await db.commit()
+    
+    # Notify bot to delete channel
+    try:
+        r = await get_redis()
+        await r.publish("ticket_action", json.dumps({
+            "action": "close",
+            "guild_id": guild_id,
+            "ticket_id": ticket_id,
+            "channel_id": channel_id,
+            "closed_by": user.discord_id
+        }))
+        await r.aclose()
+    except Exception as e:
+        logger.warning(f"Redis publish error: {e}")
+    
+    return ApiResponse(data={"closed": True})
+
+
+class TicketMessageRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=2000)
+
+
+@router.post("/tickets/{ticket_id}/message", response_model=ApiResponse)
+async def send_ticket_message(
+    guild_id: str,
+    ticket_id: int,
+    message: TicketMessageRequest,
+    user: User = Depends(get_me),
+    db: AsyncSession = Depends(get_db)
+):
+    """Send a message to a ticket channel via bot"""
+    # Get ticket info
+    result = await db.execute(
+        text("SELECT channel_id FROM tickets WHERE id = :tid AND guild_id = :gid AND status != 'CLOSED'"),
+        {"tid": ticket_id, "gid": guild_id}
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Ticket not found or closed")
+    
+    channel_id = row[0]
+    
+    # Notify bot to send message
+    try:
+        r = await get_redis()
+        await r.publish("ticket_action", json.dumps({
+            "action": "send_message",
+            "guild_id": guild_id,
+            "ticket_id": ticket_id,
+            "channel_id": channel_id,
+            "sender_id": user.discord_id,
+            "sender_name": user.username,
+            "content": message.content
+        }))
+        await r.aclose()
+    except Exception as e:
+        logger.warning(f"Redis publish error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send message")
+    
+    return ApiResponse(data={"sent": True})
 
 
 # ============================================
