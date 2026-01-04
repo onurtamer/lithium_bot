@@ -2,21 +2,21 @@
 Lithium Control Center - Production API Router
 Standardized endpoints for dashboard, moderation, tickets, analytics, settings
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, func
-from pydantic import BaseModel, Field
-from typing import Optional, List, Any
-from datetime import datetime, timedelta
 import asyncio
 import json
 import uuid
+from datetime import datetime, timedelta
+from typing import Any
 
-from apps.api.auth import get_me, User
+import structlog
+from apps.api.auth import User, get_me
 from apps.api.db import get_db
 from apps.api.redis_client import get_redis
-import structlog
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 
@@ -56,7 +56,7 @@ class ModuleStats(BaseModel):
 class ServiceStatus(BaseModel):
     name: str
     status: str  # online, degraded, offline
-    latency_ms: Optional[int] = None
+    latency_ms: int | None = None
 
 class Activity(BaseModel):
     id: int
@@ -72,8 +72,8 @@ class DashboardData(BaseModel):
     messages: MessageStats
     moderation: ModerationStats
     modules: ModuleStats
-    system_status: List[ServiceStatus]
-    recent_activities: List[Activity]
+    system_status: list[ServiceStatus]
+    recent_activities: list[Activity]
 
 class ModuleInfo(BaseModel):
     key: str
@@ -81,50 +81,50 @@ class ModuleInfo(BaseModel):
     description: str
     category: str
     enabled: bool
-    config: Optional[dict] = None
-    updated_at: Optional[str] = None
-    updated_by: Optional[str] = None
+    config: dict | None = None
+    updated_at: str | None = None
+    updated_by: str | None = None
 
 class ModerationCase(BaseModel):
     id: int
     case_id: int
     action_type: str
     user_id: str
-    username: Optional[str] = None
+    username: str | None = None
     moderator_id: str
-    reason: Optional[str] = None
+    reason: str | None = None
     active: bool
-    duration: Optional[int] = None
+    duration: int | None = None
     created_at: str
 
 class TicketInfo(BaseModel):
     id: int
-    channel_id: Optional[str] = None
+    channel_id: str | None = None
     user_id: str
-    username: Optional[str] = None
+    username: str | None = None
     subject: str
     status: str
     messages_count: int = 0
     created_at: str
-    closed_at: Optional[str] = None
+    closed_at: str | None = None
 
 class AuditLogEntry(BaseModel):
     id: int
     actor_id: str
-    actor_name: Optional[str] = None
+    actor_name: str | None = None
     action: str
-    target_type: Optional[str] = None
-    target_id: Optional[str] = None
-    diff_json: Optional[dict] = None
+    target_type: str | None = None
+    target_id: str | None = None
+    diff_json: dict | None = None
     created_at: str
 
 class GuildSettings(BaseModel):
     prefix: str = "!"
     language: str = "tr"
-    log_channel_id: Optional[str] = None
+    log_channel_id: str | None = None
     welcome_enabled: bool = False
-    welcome_channel_id: Optional[str] = None
-    welcome_message: Optional[str] = None
+    welcome_channel_id: str | None = None
+    welcome_message: str | None = None
     dm_on_warn: bool = True
     dm_on_mute: bool = True
     notify_on_join: bool = True
@@ -284,7 +284,7 @@ async def get_dashboard(guild_id: str, user: User = Depends(get_me), db: AsyncSe
 @router.get("/moderation", response_model=ApiResponse)
 async def get_moderation_overview(
     guild_id: str,
-    status: Optional[str] = None,
+    status: str | None = None,
     page: int = 1,
     limit: int = 20,
     user: User = Depends(get_me),
@@ -372,7 +372,7 @@ async def get_warnings(guild_id: str, user: User = Depends(get_me), db: AsyncSes
 @router.get("/tickets", response_model=ApiResponse)
 async def get_tickets(
     guild_id: str,
-    status: Optional[str] = None,
+    status: str | None = None,
     page: int = 1,
     limit: int = 20,
     user: User = Depends(get_me),
@@ -385,7 +385,7 @@ async def get_tickets(
     try:
         query = "SELECT id, channel_id, owner_id, status, category, created_at FROM tickets WHERE guild_id = :gid"
         if status:
-            query += f" AND status = :status"
+            query += " AND status = :status"
         query += " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
         
         params = {"gid": guild_id, "limit": limit, "offset": offset}
@@ -436,7 +436,7 @@ async def get_tickets(
 async def update_ticket(
     guild_id: str,
     ticket_id: int,
-    status: Optional[str] = None,
+    status: str | None = None,
     user: User = Depends(get_me),
     db: AsyncSession = Depends(get_db)
 ):
@@ -458,10 +458,10 @@ async def update_ticket(
 @router.get("/audit", response_model=ApiResponse)
 async def get_audit_logs(
     guild_id: str,
-    action: Optional[str] = None,
-    actor: Optional[str] = None,
-    from_date: Optional[str] = None,
-    to_date: Optional[str] = None,
+    action: str | None = None,
+    actor: str | None = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
     page: int = 1,
     limit: int = 50,
     user: User = Depends(get_me),
@@ -519,8 +519,8 @@ async def get_audit_logs(
 async def get_analytics(
     guild_id: str,
     metric: str = "messages",
-    from_date: Optional[str] = None,
-    to_date: Optional[str] = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
     group_by: str = "daily",
     user: User = Depends(get_me),
     db: AsyncSession = Depends(get_db)
