@@ -5,8 +5,7 @@ Real-time WebSocket endpoint for live data streaming to frontend
 import asyncio
 import json
 from typing import Dict, Set
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
-from apps.api.auth import get_ws_user
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from apps.api.event_bus import event_bus, guild_channel, EventTypes
 import structlog
 
